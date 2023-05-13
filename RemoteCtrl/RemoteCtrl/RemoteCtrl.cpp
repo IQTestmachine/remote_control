@@ -10,6 +10,11 @@
 #define new DEBUG_NEW
 #endif
 
+#pragma comment(linker, "/subsystem:windows /entry:mainCRTStartup") //更改子系统和入口点, 程序运行不再弹出黑框
+//#pragma comment(linker, "/subsystem:windows /entry:WinMainCRTStartup")
+//#pragma comment(linker, "/subsystem:console /entry:WinMainCRTStartup")
+//#pragma comment(linker, "/subsystem:console /entry:mainCRTStartup")
+
 
 // 唯一的应用程序对象
 
