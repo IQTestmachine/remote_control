@@ -9,13 +9,20 @@ class CPacket
 {
 public:
 	CPacket() : sHead(0), nLength(0), sCmd(0), sSum(0) { }
-	CPacket(WORD nCmd, const BYTE* pData, size_t nSize)
+	CPacket(WORD nCmd, const BYTE* pData, size_t nSize)//服务端把要发送的信息打包成一个数据包
 	{
 		sHead = 0xFEFE;
 		nLength = nSize + 4;
 		sCmd = nCmd;
-		strData.resize(nSize);
-		memcpy((void*)strData.c_str(), pData, nSize);
+		if (nSize > 0)
+		{
+			strData.resize(nSize);
+			memcpy((void*)strData.c_str(), pData, nSize);
+		}
+		else
+		{
+			strData.clear();
+		}
 		sSum = 0;
 		for (size_t j = 0; j < strData.size(); j++)
 		{
@@ -30,7 +37,7 @@ public:
 		strData = pack.strData;
 		sSum = pack.sSum;
 	}
-	CPacket(const BYTE* pData, size_t& nSize)
+	CPacket(const BYTE* pData, size_t& nSize)//从客户端读取来的数据流中打包出一个数据包
 	{
 		size_t i = 0;
 		for (; i < nSize; i++)
@@ -206,7 +213,7 @@ public:
 
 	bool GetFilePath(std::string& strPath)
 	{
-		if (m_packet.sCmd == 2)
+		if (m_packet.sCmd >= 2 && m_packet.sCmd <= 4)
 		{
 			strPath = m_packet.strData;
 			return true;

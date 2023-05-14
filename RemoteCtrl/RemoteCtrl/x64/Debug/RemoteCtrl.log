@@ -1,10 +1,6 @@
-﻿  CServerSocket.cpp
+﻿  RemoteCtrl.cpp
 F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\CServerSocket.h(15,1): warning C4267: “=”: 从“size_t”转换到“DWORD”，可能丢失数据
-F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\CServerSocket.h(178,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
-  RemoteCtrl.cpp
-F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\CServerSocket.h(15,1): warning C4267: “=”: 从“size_t”转换到“DWORD”，可能丢失数据
-F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\CServerSocket.h(178,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\CServerSocket.h(185,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
 F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\RemoteCtrl.cpp(66,1): warning C4305: “=”: 从“int”到“bool”截断
 F:\23mypractice1\remote_control\RemoteCtrl\RemoteCtrl\RemoteCtrl.cpp(102,28): warning C4244: “=”: 从“intptr_t”转换到“int”，可能丢失数据
-  正在生成代码...
   RemoteCtrl.vcxproj -> F:\23mypractice1\remote_control\RemoteCtrl\x64\Debug\RemoteCtrl.exe
