@@ -6,6 +6,7 @@
 #include "RemoteCtrl.h"
 #include "CServerSocket.h"
 #include <direct.h>
+#include <atlimage.h> //用于发送屏幕截图的头文件
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -262,6 +263,46 @@ int MouseEvent()
     return 0;
 }
 
+int SendScreen()
+{
+    CImage screen;//GDI
+    HDC hScreen = ::GetDC(nullptr);//获取设备上下文
+    int nBitPerPixel = GetDeviceCaps(hScreen, BITSPIXEL);//获取一个像素点所占的位宽(大小)RGB: 24bit ARGB888: 32bit RGB565: 16bit 
+    int nWidth = GetDeviceCaps(hScreen, HORZRES);
+    int nHeight = GetDeviceCaps(hScreen, VERTRES);
+    screen.Create(nWidth, nHeight, nBitPerPixel);
+    BitBlt(screen.GetDC(), 0, 0, 1920, 1020, hScreen, 0, 0, SRCCOPY);//获取截图
+    ReleaseDC(nullptr, hScreen);
+    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, 0);
+    if (hMem == nullptr)
+        return -1;
+    IStream* pStream = nullptr;
+    HRESULT ret = CreateStreamOnHGlobal(hMem, true, &pStream);
+    if (ret == S_OK)
+    {
+        screen.Save(pStream, Gdiplus::ImageFormatJPEG);//把截图的数据信息保存在一个输入流中
+        LARGE_INTEGER bg = { 0 };
+        pStream->Seek(bg, STREAM_SEEK_SET, nullptr);//将流重新定位到保存信息的开头位置
+        PBYTE pData = PBYTE(GlobalLock(hMem));
+        SIZE_T nSize = GlobalSize(hMem);
+        CPacket pack(6, nullptr, nSize);
+        CServerSocket::getInstance()->Send(pack);
+        GlobalUnlock(hMem);
+    }
+    pStream->Release();
+    GlobalFree(hMem);
+    screen.ReleaseDC();
+    //下面比较了png与jpg的内存消耗和生成说用的CPU时间
+    /*DWORD tick = GetTickCount64();
+    screen.Save(_T("test2023.png"), Gdiplus::ImageFormatPNG);
+    TRACE("png %d\r\n", GetTickCount64() - tick);
+    tick = GetTickCount64();
+    screen.Save(_T("test2023.jpg"), Gdiplus::ImageFormatJPEG);
+    TRACE("jpg %d\r\n", GetTickCount64() - tick);
+    screen.ReleaseDC();*/
+    return 0;
+}
+
 int main()
 {
     int nRetCode = 0;
@@ -327,6 +368,11 @@ int main()
             case 5://鼠标操作
                 MouseEvent();
                 break;
+            case 6://发送屏幕内容==>发送屏幕截图
+                SendScreen();
+                break;
+
+
             }
             
         }
