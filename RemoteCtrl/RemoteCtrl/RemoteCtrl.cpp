@@ -303,6 +303,73 @@ int SendScreen()
     return 0;
 }
 
+#include "LockDialog.h"
+CLockDialog dlg;
+unsigned threadid = 0;
+
+unsigned __stdcall threadLockDlg(void* arg)//线程处理函数
+{
+    TRACE("%s(%d):%d\r\n", __FUNCTION__, __LINE__, GetCurrentThreadId());
+    dlg.Create(IDD_DIALOG_INFO, nullptr);
+    dlg.ShowWindow(SW_SHOW);//非模态
+    CRect rect;
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = GetSystemMetrics(SM_CXFULLSCREEN);
+    rect.bottom = GetSystemMetrics(SM_CYFULLSCREEN);
+    dlg.MoveWindow(rect);//遮蔽后台窗口
+    dlg.SetWindowPos(&dlg.wndTopMost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);//置顶, 对话框置于图层最前方
+    ShowCursor(false);//限制鼠标, 使其在对话框内消失
+    ::ShowWindow(::FindWindow(_T("Shell_TrayWnd"), nullptr), SW_HIDE);//隐藏任务栏
+    rect.left = 0;
+    rect.top = 0;
+    rect.right = 1;
+    rect.bottom = 1;
+    ClipCursor(rect);//限制鼠标的活动范围, 此时限定为只能在一个点
+    MSG msg;
+    while (GetMessage(&msg, nullptr, 0, 0))
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+        if (msg.message == WM_KEYDOWN)
+        {
+            TRACE("msg:%08X wparam:%08X lparam:%08X\r\n", msg.message, msg.wParam, msg.lParam);
+            if (msg.wParam == 0x1B)//按下esc退出
+            {
+                break;
+            }
+        }
+    }
+    ShowCursor(true);
+    ::ShowWindow(::FindWindow(_T("Shell_TrayWnd"), nullptr), SW_SHOW);//恢复任务栏
+    dlg.DestroyWindow();
+    _endthreadex(0);
+    return 0;
+}
+
+int LockMachine()
+{
+    if (dlg.m_hWnd == nullptr || dlg.m_hWnd == INVALID_HANDLE_VALUE)
+    {
+        //_beginthread(threadLockDlg, 0, nullptr);
+        _beginthreadex(nullptr, 0, threadLockDlg, nullptr, 0, &threadid);
+        TRACE("threadid = %d\r\n", threadid);
+    }
+    CPacket pack(7, nullptr, 0);
+    CServerSocket::getInstance()->Send(pack);
+    return 0;
+}
+
+int UnlockMachine()
+{
+    //dlg.SendMessage(WM_KEYDOWN, 0x41, 0x01E001);
+    //::SendMessage(dlg.m_hWnd, WM_KEYDOWN, 0x41, 0x01E0001);
+    PostThreadMessage(threadid, WM_KEYDOWN, 0x1B, 0);
+    CPacket pack(7, nullptr, 0);
+    CServerSocket::getInstance()->Send(pack);
+    return 0;
+}
+
 int main()
 {
     int nRetCode = 0;
@@ -349,8 +416,7 @@ int main()
             //    int ret = pserver->DealComment();
             //    // ToDO: 处理命令
             //}
-
-            int nCmd = 1;
+            int nCmd = 7;
             switch (nCmd)
             {
             case 1://查看磁盘分区
@@ -371,10 +437,22 @@ int main()
             case 6://发送屏幕内容==>发送屏幕截图
                 SendScreen();
                 break;
-
-
+            case 7://锁机
+                LockMachine();
+                break;
+            case 8://解锁
+                UnlockMachine();
+                break;
             }
-            
+            Sleep(5000);
+            UnlockMachine();
+            /*while (dlg.m_hWnd != nullptr && dlg.m_hWnd != INVALID_HANDLE_VALUE)
+                Sleep(1000);*/
+            TRACE("m_hWnd = %08X\r\n", dlg.m_hWnd);
+            while (dlg.m_hWnd != nullptr)
+            {
+                Sleep(10);
+            }
         }
     }
     else
