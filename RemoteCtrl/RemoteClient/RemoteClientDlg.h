@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "CClientSocket.h"
 
 
 // CRemoteClientDlg 对话框
