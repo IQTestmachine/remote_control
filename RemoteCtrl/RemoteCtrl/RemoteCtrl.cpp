@@ -370,6 +370,59 @@ int UnlockMachine()
     return 0;
 }
 
+int TestConnect()
+{
+    CPacket pack(1981, nullptr, 0);
+    CServerSocket::getInstance()->Send(pack);
+    return 0;
+}
+
+int ExcuteCommand(int nCmd)
+{
+    int ret = 0;
+    switch (nCmd)
+    {
+    case 1://查看磁盘分区
+        ret = MakeDriverInfo();
+        break;
+    case 2://查看指定目录下的文件
+        ret = MakeDirectoryInfo();
+        break;
+    case 3://打开文件
+        ret = RunFile();
+        break;
+    case 4://下载文件
+        ret = DownloadFile();
+        break;
+    case 5://鼠标操作
+        ret = MouseEvent();
+        break;
+    case 6://发送屏幕内容==>发送屏幕截图
+        ret = SendScreen();
+        break;
+    case 7://锁机
+        ret = LockMachine();
+        break;
+    case 8://解锁
+        ret = UnlockMachine();
+        break;
+    case 1981:
+        ret = TestConnect();
+        break;
+    }
+    return ret;
+    //Sleep(5000);
+    //UnlockMachine();
+    ///*while (dlg.m_hWnd != nullptr && dlg.m_hWnd != INVALID_HANDLE_VALUE)
+    //    Sleep(1000);*/
+    //TRACE("m_hWnd = %08X\r\n", dlg.m_hWnd);
+    //while (dlg.m_hWnd != nullptr)
+    //{
+    //    Sleep(10);
+    //}
+
+}
+
 int main()
 {
     int nRetCode = 0;
@@ -390,68 +443,38 @@ int main()
             //// 从比较难的技术开始, 本项目从服务端(被控制端)的实现开始
             //// 1.进度的可控性 2.对接的方便性 3.可行性评估,提早暴露风险
             //// TODO: socket, blind, listen, accept, read, close
-
             //// 套接字初始化          
 
-            //CServerSocket* pserver = CServerSocket::getInstance();
-            //if (pserver->InitSocket() == false)
-            //{
-            //    MessageBox(nullptr, _T("网络初始化异常, 请检查网络状态!"), _T("网络初始化失败!"), MB_OK | MB_ICONERROR);
-            //    exit(0);
-            //}
-
-            //int count = 0;
-            //while (CServerSocket::getInstance() != nullptr)
-            //{
-            //    if (pserver->AcceptClient() == false)
-            //    {
-            //        if (count >= 3)
-            //        {
-            //            MessageBox(nullptr, _T("多次无法正常接入用户, 程序结束!"), _T("接入用户失败!"), MB_OK | MB_ICONERROR);
-            //            exit(0);
-            //        }
-            //        MessageBox(nullptr, _T("无法正常接入用户, 自动重试..."), _T("接入用户失败"), MB_OK | MB_ICONERROR);
-            //        count++;
-            //    }
-            //    int ret = pserver->DealComment();
-            //    // ToDO: 处理命令
-            //}
-            int nCmd = 7;
-            switch (nCmd)
+            CServerSocket* pserver = CServerSocket::getInstance();
+            if (pserver->InitSocket() == false)
             {
-            case 1://查看磁盘分区
-				MakeDriverInfo();
-				break;
-            case 2://查看指定目录下的文件
-                MakeDirectoryInfo();
-                break;
-            case 3://打开文件
-                RunFile();
-                break;
-            case 4://下载文件
-                DownloadFile();
-                break;
-            case 5://鼠标操作
-                MouseEvent();
-                break;
-            case 6://发送屏幕内容==>发送屏幕截图
-                SendScreen();
-                break;
-            case 7://锁机
-                LockMachine();
-                break;
-            case 8://解锁
-                UnlockMachine();
-                break;
+                MessageBox(nullptr, _T("网络初始化异常, 请检查网络状态!"), _T("网络初始化失败!"), MB_OK | MB_ICONERROR);
+                exit(0);
             }
-            Sleep(5000);
-            UnlockMachine();
-            /*while (dlg.m_hWnd != nullptr && dlg.m_hWnd != INVALID_HANDLE_VALUE)
-                Sleep(1000);*/
-            TRACE("m_hWnd = %08X\r\n", dlg.m_hWnd);
-            while (dlg.m_hWnd != nullptr)
+
+            int count = 0;
+            while (CServerSocket::getInstance() != nullptr)
             {
-                Sleep(10);
+                if (pserver->AcceptClient() == false)
+                {
+                    if (count >= 3)
+                    {
+                        MessageBox(nullptr, _T("多次无法正常接入用户, 程序结束!"), _T("接入用户失败!"), MB_OK | MB_ICONERROR);
+                        exit(0);
+                    }
+                    MessageBox(nullptr, _T("无法正常接入用户, 自动重试..."), _T("接入用户失败"), MB_OK | MB_ICONERROR);
+                    count++;
+                }
+                int ret = pserver->DealCommand();
+                // ToDO: 处理命令
+                if (ret > 0)
+                {
+                    //ExcuteCommand(ret); 这样不也可以吗? 为何还要定义GetPacket()来获得sCmd？
+                    ret = ExcuteCommand(pserver->GetPacket().sCmd);
+                    if (ret != 0)
+                        TRACE("执行命令失败: %d ret = %d\r\n", pserver->GetPacket().sCmd, ret);
+                    pserver->CloseClient();
+                }                
             }
         }
     }

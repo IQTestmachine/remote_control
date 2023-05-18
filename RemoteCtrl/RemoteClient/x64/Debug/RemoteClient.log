@@ -1,4 +1,11 @@
 ﻿  CClientSocket.cpp
-F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(17,1): warning C4267: “=”: 从“size_t”转换到“DWORD”，可能丢失数据
-F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(211,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(18,1): warning C4267: “=”: 从“size_t”转换到“DWORD”，可能丢失数据
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(202,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+  RemoteClient.cpp
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(18,1): warning C4267: “=”: 从“size_t”转换到“DWORD”，可能丢失数据
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(202,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+  RemoteClientDlg.cpp
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(18,1): warning C4267: “=”: 从“size_t”转换到“DWORD”，可能丢失数据
+F:\23mypractice1\remote_control\RemoteCtrl\RemoteClient\CClientSocket.h(202,1): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+  正在生成代码...
   RemoteClient.vcxproj -> F:\23mypractice1\remote_control\RemoteCtrl\x64\Debug\RemoteClient.exe

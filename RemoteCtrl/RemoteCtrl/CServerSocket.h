@@ -179,25 +179,34 @@ public:
 		sockaddr_in client_adr;
 		int cli_sz = sizeof(client_adr);
 		m_client = accept(m_server, (sockaddr*)&client_adr, &cli_sz);
+		TRACE("m_client = %d\r\n", m_client);
 		if (m_client == -1)
 			return false;
 		return true;
 	}
 
 #define BUFFER_SIZE 4096
-	int DealComment()
+	int DealCommand()
 	{
 		if (m_client == -1)
 			return -1;
 		//char buffer[1024] = "";
 		char* buffer = new char[4096];
+		if (buffer == nullptr)
+		{
+			TRACE("内存不足!");
+			return -2;
+		}
 		memset(buffer, 0, 4096);
 		size_t index = 0;
 		while (true)
 		{
 			size_t len = recv(m_client, buffer + index, BUFFER_SIZE - index, 0);
 			if (len <= 0)
+			{
+				delete[] buffer;
 				return -1;
+			}
 			index += len;
 			len = index;
 			m_packet = CPacket((BYTE*)buffer, len);
@@ -205,9 +214,11 @@ public:
 			{
 				memmove(buffer, buffer + len, BUFFER_SIZE - len);
 				index -= len;
+				delete[] buffer;
 				return m_packet.sCmd;
 			}		
 		}
+		delete[] buffer;//? 没必要了啊, 已经确保释放内存了啊
 		return -1;
 	}
 
@@ -244,6 +255,16 @@ public:
 		return false;
 	}
 
+	CPacket GetPacket()
+	{
+		return m_packet;
+	}
+
+	void CloseClient()
+	{
+		closesocket(m_client);
+		m_client = INVALID_SOCKET;
+	}
 private:
 	SOCKET m_server;
 	SOCKET m_client;

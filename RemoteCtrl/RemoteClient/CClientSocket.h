@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "framework.h"
 #include <string>
+#include <vector>
 #pragma warning(disable : 4996)
 
 #pragma pack(push)
@@ -145,20 +146,7 @@ typedef struct MouseEvent
 	POINT ptXY;//坐标
 }MOUSEEV, * PMOUSEEV;
 
-std::string GetErrorInfo(int wsaErrCode)
-{
-	std::string ret;
-	LPVOID lpMsgBuf = nullptr;
-	FormatMessage(
-		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-		nullptr,
-		wsaErrCode,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)&lpMsgBuf, 0, nullptr);
-	ret = (char*)lpMsgBuf;
-	LocalFree(lpMsgBuf);
-	return ret;
-}
+std::string GetErrorInfo(int wsaErrCode);
 
 class CClientSocket
 {
@@ -174,6 +162,9 @@ public:
 
 	bool InitSocket(const std::string& strIPAddress)
 	{
+		if (m_client != INVALID_SOCKET)
+			CloseSocket();
+		m_client = socket(PF_INET, SOCK_STREAM, 0);
 		// TODO: 校验, 套接字是否创建成功
 		if (m_client == -1)
 			return false;
@@ -198,12 +189,12 @@ public:
 	}
 
 #define BUFFER_SIZE 4096
-	int DealComment()
+	int DealCommand()
 	{
 		if (m_client == -1)
 			return -1;
 		//char buffer[1024] = "";
-		char* buffer = new char[4096];
+		char* buffer = m_buffer.data();
 		memset(buffer, 0, 4096);
 		size_t index = 0;
 		while (true)
@@ -257,7 +248,18 @@ public:
 		return false;
 	}
 
+	CPacket GetPacket()
+	{
+		return m_packet;
+	}
+	void CloseSocket()
+	{
+		closesocket(m_client);
+		m_client = INVALID_SOCKET;
+	}
+
 private:
+	std::vector<char> m_buffer;
 	SOCKET m_client;
 	CPacket m_packet;
 	CClientSocket()
@@ -267,8 +269,7 @@ private:
 			MessageBox(nullptr, _T("无法初始化套接字环境, 请检查网络设置!"), _T("初始化错误"), MB_OK | MB_ICONERROR);
 			exit(0);
 		}
-		m_client = socket(PF_INET, SOCK_STREAM, 0);
-
+		m_buffer.resize(BUFFER_SIZE);
 	}
 	CClientSocket(const CClientSocket&) { }
 	CClientSocket& operator=(const CClientSocket& ss)
