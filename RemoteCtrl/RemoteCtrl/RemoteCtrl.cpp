@@ -52,7 +52,7 @@ int MakeDriverInfo() // 获取磁盘分区
     }
     CPacket pack(1, (BYTE*)result.c_str(), result.size());//生成磁盘分区的数据包
     Dump((BYTE*)pack.Data(), pack.Size());
-    //CServerSocket::getInstance()->Send(pack);
+    CServerSocket::getInstance()->Send(pack);
     return 0;
 }
 

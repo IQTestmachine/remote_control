@@ -4,7 +4,7 @@
 CClientSocket* CClientSocket::m_instance = NULL;
 CClientSocket::Helper CClientSocket::m_helper;
 
-//CServerSocket* pserver = CServerSocket::getInstance();
+CClientSocket* pserver = CClientSocket::getInstance();
 
 std::string GetErrorInfo(int wsaErrCode)
 {
