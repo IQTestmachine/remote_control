@@ -20,15 +20,15 @@ class CAboutDlg : public CDialogEx
 public:
 	CAboutDlg();
 
-// 对话框数据
+	// 对话框数据
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_ABOUTBOX };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 
-// 实现
+	// 实现
 protected:
 	DECLARE_MESSAGE_MAP()
 };
@@ -52,9 +52,8 @@ END_MESSAGE_MAP()
 
 CRemoteClientDlg::CRemoteClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_REMOTECLIENT_DIALOG, pParent)
-	, m_srever_address(0)
-	, m_nPort(_T(""))
 	, m_server_address(0)
+	, m_nPort(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -65,9 +64,10 @@ void CRemoteClientDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_PORT, m_nPort);
 	DDX_IPAddress(pDX, IDC_IPADDRESS_SERV, m_server_address);
 	DDX_Control(pDX, IDC_TREE_DIR, m_Tree);
+	//DDX_Control(pDX, IDC_LIST_FILE, m_List);
 }
 
-int CRemoteClientDlg::SendCommandPacket(int nCmd, BYTE* pData, size_t nLength)
+int CRemoteClientDlg::SendCommandPacket(int nCmd, bool bAutoClose, BYTE* pData, size_t nLength)
 {
 	UpdateData();//? 把数据从界面更新到全局变量(不理解)
 	CClientSocket* pClient = CClientSocket::getInstance();
@@ -81,7 +81,8 @@ int CRemoteClientDlg::SendCommandPacket(int nCmd, BYTE* pData, size_t nLength)
 	pClient->Send(pack);
 	int cmd = pClient->DealCommand();
 	TRACE("ack: %d\r\n", pClient->GetPacket().sCmd);
-	pClient->CloseSocket();
+	if (bAutoClose)
+		pClient->CloseSocket();
 	return cmd;
 }
 
@@ -91,6 +92,8 @@ BEGIN_MESSAGE_MAP(CRemoteClientDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDABORT, &CRemoteClientDlg::OnBnClickedAbort)
 	ON_BN_CLICKED(IDC_BUT_FILEINFO, &CRemoteClientDlg::OnBnClickedButFileinfo)
+	//ON_NOTIFY(NM_DBLCLK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMDblclkTreeDir)
+	ON_NOTIFY(NM_DBLCLK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMDblclkTreeDir)
 END_MESSAGE_MAP()
 
 
@@ -187,8 +190,6 @@ HCURSOR CRemoteClientDlg::OnQueryDragIcon()
 void CRemoteClientDlg::OnBnClickedAbort()
 {
 	SendCommandPacket(1981);
-
-
 }
 
 
@@ -213,10 +214,193 @@ void CRemoteClientDlg::OnBnClickedButFileinfo()
 		if (drivers[i] == ',' || i == drivers.size() - 1)
 		{
 			dr += ":";
-			m_Tree.InsertItem(dr.c_str(), TVI_ROOT, TVI_LAST);//添加到根目录下, 以追加的方式添加
+			//m_Tree.InsertItem(dr.c_str(), TVI_ROOT, TVI_LAST); 添加到根目录下, 以追加的方式添加
+			HTREEITEM hTmp = m_Tree.InsertItem(dr.c_str(), TVI_ROOT, TVI_LAST);//? 上一行代码更改为这一行及下一行代码, 不理解
+			m_Tree.InsertItem("", hTmp, TVI_LAST);
 			dr.clear();
-			continue;
 		}
 	}
 
+}
+
+//void CRemoteClientDlg::LoadFileInfo()
+//{
+//	CPoint ptMouse;
+//	GetCursorPos(&ptMouse);
+//	m_Tree.ScreenToClient(&ptMouse);
+//	HTREEITEM hTreeSelected = m_Tree.HitTest(ptMouse, 0);
+//	if (hTreeSelected == nullptr)//检测是否双击了按钮
+//		return;
+//
+//	if (m_Tree.GetChildItem(hTreeSelected) == nullptr)
+//		return;
+//
+//	DeleteTreeChildrenItem(hTreeSelected);//重新点击时先清空原来的内容
+//	m_List.DeleteAllItems();//重新点击时先清空原来的内容
+//	CString strPath = GetPath(hTreeSelected);
+//	TRACE("%s", strPath);
+//	int cmd = SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
+//	TRACE("%d", cmd);
+//	CClientSocket* pClient = CClientSocket::getInstance();
+//	PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
+//	while (pInfo->HasNext)
+//	{
+//		TRACE("szFilename = %s, IsDirectory = %d\r\n", pInfo->szFileName, pInfo->IsDirectory);
+//		if (pInfo->IsDirectory)
+//		{
+//			if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
+//			{
+//				int cmd = pClient->DealCommand();
+//				TRACE("ack: %d\r\n", cmd);
+//				if (cmd < 0)
+//					break;
+//				pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+//				continue;
+//				HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
+//				m_Tree.InsertItem("", hTmp, TVI_LAST);
+//			}
+//		}
+//		else
+//		{
+//			m_List.InsertItem(0, pInfo->szFileName);
+//		}
+//		int cmd = pClient->DealCommand();
+//		TRACE("ack: %d\r\n", cmd);
+//		if (cmd < 0)
+//			break;
+//		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+//	}
+//
+//	pClient->CloseSocket();
+//}
+
+CString CRemoteClientDlg::GetPath(HTREEITEM hTree)//展开指定节点下的分支
+{
+	CString strRet, strTmp;
+	do {
+		strTmp = m_Tree.GetItemText(hTree);
+		strRet = strTmp + "\\" + strRet;
+		hTree = m_Tree.GetParentItem(hTree);//为何这里获取父节点
+	} while (hTree != nullptr);
+	return strRet;
+}
+
+void CRemoteClientDlg::DeleteTreeChildrenItem(HTREEITEM hTree)
+{
+	HTREEITEM hSub = nullptr;
+	do {
+		hSub = m_Tree.GetChildItem(hTree);
+		if (hSub != nullptr)
+			m_Tree.DeleteItem(hSub);
+	} while (hSub != nullptr);
+}
+
+//void CRemoteClientDlg::OnNMDblclkTreeDir(NMHDR* pNMHDR, LRESULT* pResult)
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//	*pResult = 0;
+//	CPoint ptMouse;
+//	GetCursorPos(&ptMouse);
+//	m_Tree.ScreenToClient(&ptMouse);
+//	HTREEITEM hTreeSelected = m_Tree.HitTest(ptMouse, 0);
+//	if (hTreeSelected == nullptr)//检测是否双击了按钮
+//		return;
+//
+//	if (m_Tree.GetChildItem(hTreeSelected) == nullptr)
+//		return;
+//
+//	DeleteTreeChildrenItem(hTreeSelected);//重新点击时先清空原来的内容
+//	CString strPath = GetPath(hTreeSelected);
+//	TRACE("%s", strPath);
+//	int cmd = SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
+//	TRACE("%d", cmd);
+//	CClientSocket* pClient = CClientSocket::getInstance();
+//	PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
+//	while (pInfo->HasNext)
+//	{
+//		TRACE("szFilename = %s, IsDirectory = %d\r\n", pInfo->szFileName, pInfo->IsDirectory);
+//		if (pInfo->IsDirectory)
+//		{
+//			if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
+//			{
+//				int cmd = pClient->DealCommand();
+//				TRACE("ack: %d\r\n", cmd);
+//				if (cmd < 0)
+//					break;
+//				pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+//				continue;
+//			}
+//		}
+//		HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
+//		if (pInfo->IsDirectory)
+//			m_Tree.InsertItem("", hTmp, TVI_LAST);
+//		int cmd = pClient->DealCommand();
+//		TRACE("ack: %d\r\n", cmd);
+//		if (cmd < 0)
+//			break;
+//		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+//	}
+//
+//	pClient->CloseSocket();
+//	//LoadFileInfo();
+//}
+
+
+//void CRemoteClientDlg::OnNMClickTreeDir(NMHDR* pNMHDR, LRESULT* pResult)
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//	*pResult = 0;
+//	LoadFileInfo();
+//}
+
+
+void CRemoteClientDlg::OnNMDblclkTreeDir(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	// TODO: 在此添加控件通知处理程序代码
+	*pResult = 0;
+	// TODO: 在此添加控件通知处理程序代码
+	*pResult = 0;
+	CPoint ptMouse;
+	GetCursorPos(&ptMouse);
+	m_Tree.ScreenToClient(&ptMouse);
+	HTREEITEM hTreeSelected = m_Tree.HitTest(ptMouse, 0);
+	if (hTreeSelected == nullptr)//检测是否双击了按钮
+		return;
+
+	if (m_Tree.GetChildItem(hTreeSelected) == nullptr)
+		return;
+
+	DeleteTreeChildrenItem(hTreeSelected);//重新点击时先清空原来的内容
+	CString strPath = GetPath(hTreeSelected);
+	TRACE("%s", strPath);
+	int cmd = SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
+	TRACE("%d", cmd);
+	CClientSocket* pClient = CClientSocket::getInstance();
+	PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
+	while (pInfo->HasNext)
+	{
+		TRACE("szFilename = %s, IsDirectory = %d\r\n", pInfo->szFileName, pInfo->IsDirectory);
+		if (pInfo->IsDirectory)
+		{
+			if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
+			{
+				int cmd = pClient->DealCommand();
+				TRACE("ack: %d\r\n", cmd);
+				if (cmd < 0)
+					break;
+				pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+				continue;
+			}
+		}
+		HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
+		if (pInfo->IsDirectory)
+			m_Tree.InsertItem("", hTmp, TVI_LAST);
+		int cmd = pClient->DealCommand();
+		TRACE("ack: %d\r\n", cmd);
+		if (cmd < 0)
+			break;
+		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+	}
+
+	pClient->CloseSocket();
 }

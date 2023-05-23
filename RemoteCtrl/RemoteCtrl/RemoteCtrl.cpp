@@ -59,23 +59,6 @@ int MakeDriverInfo() // 获取磁盘分区
 #include <io.h>
 //#include <list>
 
-typedef struct file_info
-{
-    file_info()
-    {
-        IsInvalid = false;
-        IsDirectory = -1;
-        bool HasNext = true;
-        memset(szFileName, 0, sizeof(szFileName));
-    }
-    bool IsInvalid;//路径是否有效
-    bool IsDirectory;//是否为目录 0:否 1:是
-    bool HasNext;//是否还有后续 0:否 1:是
-    char szFileName[256];//文件名
-    
-
-}FILEINFO, *PFILEINFO;
-
 int MakeDirectoryInfo()
 {
     std::string strPath;
@@ -88,10 +71,7 @@ int MakeDirectoryInfo()
     if (_chdir(strPath.c_str()) != 0)
     {
         FILEINFO finfo;
-        finfo.IsInvalid = true;
-        finfo.IsDirectory = true;
         finfo.HasNext = false;
-        memcpy(finfo.szFileName, strPath.c_str(), strPath.size());
 		CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
         CServerSocket::getInstance()->Send(pack);//拿到一个文件就发送信息到控制端
         //lstFileInfos.push_back(finfo); 
@@ -103,12 +83,17 @@ int MakeDirectoryInfo()
     if ((hfind = _findfirst("*", &fdata)) == -1)
     {
         OutputDebugString(_T("指定路径下没有任何文件!!!"));
+        FILEINFO finfo;
+        finfo.HasNext = false;
+        CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
+        CServerSocket::getInstance()->Send(pack);
         return -3;
     }
     do {
         FILEINFO finfo;
         finfo.IsDirectory = (fdata.attrib & _A_SUBDIR) != 0;
         memcpy(finfo.szFileName, fdata.name, strlen(fdata.name));
+        TRACE("%s\r\n", finfo.szFileName);
         CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
         CServerSocket::getInstance()->Send(pack);//拿到一个文件就发送信息到控制端
         //lstFileInfos.push_back(finfo); 采用链表获取全部文件和文件夹,可能因文件和文件夹太多导致迟迟不能发送, 舍弃链表的方式

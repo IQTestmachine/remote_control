@@ -22,7 +22,15 @@ public:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
 
 private:
-	int SendCommandPacket(int nCmd, BYTE* pData = nullptr, size_t nLength = 0);
+	//void LoadFileInfo();
+	CString GetPath(HTREEITEM hTree);
+	void DeleteTreeChildrenItem(HTREEITEM hTree);
+	//1.查看磁盘分区
+	//2.查看指定目录下的文件
+	//3.打开文件
+	//4.下载文件
+	//返回值是命令号, 若小于0则表示错误
+	int SendCommandPacket(int nCmd, bool bAutoClose = true, BYTE* pData = nullptr, size_t nLength = 0);
 
 
 // 实现
@@ -37,9 +45,12 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnBnClickedAbort();
-	DWORD m_srever_address;
 	CString m_nPort;
 	DWORD m_server_address;
 	afx_msg void OnBnClickedButFileinfo();
 	CTreeCtrl m_Tree;
+	/*afx_msg void OnNMDblclkTreeDir(NMHDR* pNMHDR, LRESULT* pResult);
+	显示文件
+	CListCtrl m_List;*/
+	afx_msg void OnNMDblclkTreeDir(NMHDR* pNMHDR, LRESULT* pResult);
 };

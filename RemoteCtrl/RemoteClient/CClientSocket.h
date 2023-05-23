@@ -7,12 +7,11 @@
 
 #pragma pack(push)
 #pragma pack(1)
-
 class CPacket
 {
 public:
 	CPacket() : sHead(0), nLength(0), sCmd(0), sSum(0) { }
-	CPacket(WORD nCmd, const BYTE* pData, size_t nSize)//服务端把要发送的信息打包成一个数据包
+	CPacket(WORD nCmd, const BYTE* pData, size_t nSize)//控制端把要发送的信息打包成一个数据包
 	{
 		sHead = 0xFEFE;
 		nLength = nSize + 4;
@@ -40,7 +39,7 @@ public:
 		strData = pack.strData;
 		sSum = pack.sSum;
 	}
-	CPacket(const BYTE* pData, size_t& nSize)//从客户端读取来的数据流中打包出一个数据包
+	CPacket(const BYTE* pData, size_t& nSize)//从服务端读取来的数据流中打包出一个数据包
 	{
 		size_t i = 0;
 		for (; i < nSize; i++)
@@ -62,6 +61,7 @@ public:
 		if (nLength + i > nSize)// 未能完全接收到数据包, 则返回, 解析失败
 		{
 			nSize = 0;
+			return;
 		}
 		sCmd = *(WORD*)(pData + i);
 		i += 2;
@@ -121,7 +121,7 @@ public:
 		return strOut.c_str();
 	}
 
-	~CPacket() { }
+	~CPacket() { };
 public:
 	WORD sHead;//包头, 固定位FE FF
 	DWORD nLength;//包长度(从控制命令开始,到校验和结束)
@@ -145,6 +145,22 @@ typedef struct MouseEvent
 	WORD nButton;//左键, 右键, 中键
 	POINT ptXY;//坐标
 }MOUSEEV, * PMOUSEEV;
+
+typedef struct file_info
+{
+	file_info()
+	{
+		IsInvalid = false;
+		IsDirectory = -1;
+		bool HasNext = true;
+		memset(szFileName, 0, sizeof(szFileName));
+	}
+	bool IsInvalid;//路径是否有效
+	bool IsDirectory;//是否为目录 0:否 1:是
+	bool HasNext;//是否还有后续 0:否 1:是
+	char szFileName[256];//文件名
+}FILEINFO, * PFILEINFO;
+
 
 std::string GetErrorInfo(int wsaErrCode);
 
@@ -189,7 +205,7 @@ public:
 	}
 
 #define BUFFER_SIZE 4096
-	int DealCommand()
+	int DealCommand()//接收数据包
 	{
 		if (m_client == -1)
 			return -1;
@@ -248,7 +264,7 @@ public:
 		return false;
 	}
 
-	CPacket GetPacket()
+	CPacket& GetPacket()
 	{
 		return m_packet;
 	}
