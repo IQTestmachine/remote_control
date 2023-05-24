@@ -64,10 +64,12 @@ void CRemoteClientDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_PORT, m_nPort);
 	DDX_IPAddress(pDX, IDC_IPADDRESS_SERV, m_server_address);
 	DDX_Control(pDX, IDC_TREE_DIR, m_Tree);
-	//DDX_Control(pDX, IDC_LIST_FILE, m_List);
 	DDX_Control(pDX, IDC_LIST_FILE, m_List);
 }
 
+
+//非常重要的函数! 该函数建立客户端套接字与服务端套接字的连接
+//每次调用该函数会重新建立客户端套接字与服务端套接字的连接, 并且注意88行注释
 int CRemoteClientDlg::SendCommandPacket(int nCmd, bool bAutoClose, BYTE* pData, size_t nLength)
 {
 	UpdateData();//? 把数据从界面更新到全局变量(不理解)
@@ -82,7 +84,7 @@ int CRemoteClientDlg::SendCommandPacket(int nCmd, bool bAutoClose, BYTE* pData, 
 	pClient->Send(pack);
 	int cmd = pClient->DealCommand();
 	TRACE("ack: %d\r\n", pClient->GetPacket().sCmd);
-	if (bAutoClose)
+	if (bAutoClose)//注意, 由于该条件导致该函数执行完毕前客户端套接字不一定关闭, 因此如果不采用默认参数应编写额外代码主动关闭客户端套接字
 		pClient->CloseSocket();
 	return cmd;
 }
@@ -93,7 +95,6 @@ BEGIN_MESSAGE_MAP(CRemoteClientDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDABORT, &CRemoteClientDlg::OnBnClickedAbort)
 	ON_BN_CLICKED(IDC_BUT_FILEINFO, &CRemoteClientDlg::OnBnClickedButFileinfo)
-	//ON_NOTIFY(NM_DBLCLK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMDblclkTreeDir)
 	ON_NOTIFY(NM_DBLCLK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMDblclkTreeDir)
 	ON_NOTIFY(NM_CLICK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMClickTreeDir)
 	ON_NOTIFY(NM_RCLICK, IDC_LIST_FILE, &CRemoteClientDlg::OnNMRClickListFile)
@@ -336,8 +337,6 @@ void CRemoteClientDlg::OnNMRClickListFile(NMHDR* pNMHDR, LRESULT* pResult)
 	{
 		pPupup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, ptMouse.x, ptMouse.y, this);
 	}
-
-
 }
 
 
@@ -346,6 +345,7 @@ void CRemoteClientDlg::OnDownloadFile()//点击下载文件的事件处理程序
 	// TODO: 在此添加命令处理程序代码
 	int nListSelected = m_List.GetSelectionMark();//获得选择的标记(m_List文件列表下选中的那个框)
 	CString strFile = m_List.GetItemText(nListSelected, 0);//拿到文件名
+	//在本地(客户端)为要下载的文件创建环境, dlg对象包含要下载的文件名, 下载路径等一些信息
 	CFileDialog dlg(false, "*",
 		strFile, OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY, nullptr, this);
 	if (dlg.DoModal() == IDOK)
@@ -360,17 +360,21 @@ void CRemoteClientDlg::OnDownloadFile()//点击下载文件的事件处理程序
 		strFile = GetPath(hSelected) + strFile;//获取文件完整路径
 		TRACE("%s\r\n", LPCSTR(strFile));
 		int ret = SendCommandPacket(4, false, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+		CClientSocket* pClient = CClientSocket::getInstance();
 		if (ret < 0)
 		{
 			AfxMessageBox("执行下载命令失败!!!");
 			TRACE("执行下载失败: ret = %d\r\n", ret);
+			fclose(pFile);
+			pClient->CloseSocket();
 			return;
 		}
-		CClientSocket* pClient = CClientSocket::getInstance();
 		long long nLength = *(long long*)pClient->GetPacket().strData.c_str();
 		if (nLength == 0)
 		{
 			AfxMessageBox("文件长度为零或者无法读取文件!!!");
+			fclose(pFile);
+			pClient->CloseSocket();
 			return;
 		}
 		long long nCount = 0;
