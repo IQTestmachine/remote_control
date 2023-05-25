@@ -230,6 +230,31 @@ void CRemoteClientDlg::OnBnClickedButFileinfo()
 
 }
 
+void CRemoteClientDlg::LoadFileCurrent()//删除或下载文件后调用该函数实现列表刷新
+{
+	HTREEITEM hTree = m_Tree.GetSelectedItem();
+	CString strPath = GetPath(hTree);
+	m_List.DeleteAllItems();
+	TRACE("%s", strPath);
+	int cmd = SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
+	TRACE("%d", cmd);
+	CClientSocket* pClient = CClientSocket::getInstance();
+	PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
+	while (pInfo->HasNext)
+	{
+		TRACE("szFilename = %s, IsDirectory = %d\r\n", pInfo->szFileName, pInfo->IsDirectory);
+		if (!pInfo->IsDirectory)
+			m_List.InsertItem(0, pInfo->szFileName);
+		int cmd = pClient->DealCommand();
+		TRACE("ack: %d\r\n", cmd);
+		if (cmd < 0)
+			break;
+		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+	}
+	pClient->CloseSocket();
+	//TODO: bug, 文件夹的列表显示不全
+}
+
 void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)与文件(m_List)
 {
 	CPoint ptMouse;
@@ -279,15 +304,16 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 	}
 
 	pClient->CloseSocket();
+	//TODO: bug, 文件夹和文件的列表显示不全
 }
 
-CString CRemoteClientDlg::GetPath(HTREEITEM hTree)//展开指定节点下的分支
+CString CRemoteClientDlg::GetPath(HTREEITEM hTree)//获取当前点击位置的详细路径
 {
 	CString strRet, strTmp;
 	do {
-		strTmp = m_Tree.GetItemText(hTree);
+		strTmp = m_Tree.GetItemText(hTree);//当前所点击目录(文件夹)名
 		strRet = strTmp + "\\" + strRet;
-		hTree = m_Tree.GetParentItem(hTree);//为何这里获取父节点
+		hTree = m_Tree.GetParentItem(hTree);//获取父目录
 	} while (hTree != nullptr);
 	return strRet;
 }
@@ -342,7 +368,6 @@ void CRemoteClientDlg::OnNMRClickListFile(NMHDR* pNMHDR, LRESULT* pResult)
 
 void CRemoteClientDlg::OnDownloadFile()//点击下载文件的事件处理程序(函数)
 {
-	// TODO: 在此添加命令处理程序代码
 	int nListSelected = m_List.GetSelectionMark();//获得选择的标记(m_List文件列表下选中的那个框)
 	CString strFile = m_List.GetItemText(nListSelected, 0);//拿到文件名
 	//在本地(客户端)为要下载的文件创建环境, dlg对象包含要下载的文件名, 下载路径等一些信息
@@ -393,16 +418,36 @@ void CRemoteClientDlg::OnDownloadFile()//点击下载文件的事件处理程序
 		fclose(pFile);
 		pClient->CloseSocket();
 	}
+	//TODO: 大文件传输需要额外的处理
 }
 
 
 void CRemoteClientDlg::OnDeleteFile()//点击删除文件的事件处理程序(函数)
 {
-	// TODO: 在此添加命令处理程序代码
+	HTREEITEM hSelected = m_Tree.GetSelectedItem();
+	CString strPath = GetPath(hSelected);
+	int nListSelected = m_List.GetSelectionMark();
+	CString strFile = m_List.GetItemText(nListSelected, 0);
+	strFile = strPath + strFile;
+	int ret = SendCommandPacket(9, true, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+	if (ret < 0)
+	{
+		AfxMessageBox("删除文件命令执行失败!!!");
+	}
+	LoadFileCurrent();
 }
 
 
 void CRemoteClientDlg::OnOpenFile()//点击打开文件的事件处理程序(函数)
 {
-	// TODO: 在此添加命令处理程序代码
+	HTREEITEM hSelected = m_Tree.GetSelectedItem();
+	CString strPath = GetPath(hSelected);
+	int nListSelected = m_List.GetSelectionMark();
+	CString strFile = m_List.GetItemText(nListSelected, 0);
+	strFile = strPath + strFile;
+	int ret = SendCommandPacket(3, true, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+	if (ret < 0)
+	{
+		AfxMessageBox("打开文件命令执行失败!!!");
+	}
 }
