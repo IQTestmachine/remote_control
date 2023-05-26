@@ -101,6 +101,7 @@ BEGIN_MESSAGE_MAP(CRemoteClientDlg, CDialogEx)
 	ON_COMMAND(ID_DOWNLOAD_FILE, &CRemoteClientDlg::OnDownloadFile)
 	ON_COMMAND(ID_DELETE_FILE, &CRemoteClientDlg::OnDeleteFile)
 	ON_COMMAND(ID_OPEN_FILE, &CRemoteClientDlg::OnOpenFile)
+	ON_MESSAGE(WM_SEND_PACKET, &CRemoteClientDlg::OnSendPacket)//第三步: 注册消息
 END_MESSAGE_MAP()
 
 
@@ -140,6 +141,8 @@ BOOL CRemoteClientDlg::OnInitDialog()
 	m_server_address = 0x7F000001;
 	m_nPort = _T("9527");
 	UpdateData(FALSE);
+	m_dlgStatus.Create(IDD_DIG_STATUS, this);
+	m_dlgStatus.ShowWindow(SW_HIDE);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -230,6 +233,73 @@ void CRemoteClientDlg::OnBnClickedButFileinfo()
 
 }
 
+void CRemoteClientDlg::threadEntryForDownFile(void* arg)
+{
+	CRemoteClientDlg* thiz = (CRemoteClientDlg*)arg;
+	thiz->threadDownFile();
+	_endthread();
+}
+
+void CRemoteClientDlg::threadDownFile()
+{
+	int nListSelected = m_List.GetSelectionMark();//获得选择的标记(m_List文件列表下选中的那个框)
+	CString strFile = m_List.GetItemText(nListSelected, 0);//拿到文件名
+	//在本地(客户端)为要下载的文件创建环境, dlg对象包含要下载的文件名, 下载路径等一些信息
+	CFileDialog dlg(false, "*",
+		strFile, OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY, nullptr, this);
+	if (dlg.DoModal() == IDOK)
+	{
+		FILE* pFile = fopen(dlg.GetPathName(), "wb+");
+		if (pFile == nullptr)
+		{
+			AfxMessageBox("本地没有权限保存该文件, 或者文件无法创建!!!");
+			m_dlgStatus.ShowWindow(SW_HIDE);
+			EndWaitCursor();
+			return;
+		}
+		HTREEITEM hSelected = m_Tree.GetSelectedItem();
+		strFile = GetPath(hSelected) + strFile;//获取文件完整路径
+		TRACE("%s\r\n", LPCSTR(strFile));
+		//int ret = SendCommandPacket(4, false, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+		int ret = SendMessage(WM_SEND_PACKET, 4 << 1 | 0, (LPARAM)(LPCSTR)strFile);
+		CClientSocket* pClient = CClientSocket::getInstance();
+		if (ret < 0)
+		{
+			AfxMessageBox("执行下载命令失败!!!");
+			TRACE("执行下载失败: ret = %d\r\n", ret);
+			fclose(pFile);
+			pClient->CloseSocket();
+			return;
+		}
+		long long nLength = *(long long*)pClient->GetPacket().strData.c_str();
+		if (nLength == 0)
+		{
+			AfxMessageBox("文件长度为零或者无法读取文件!!!");
+			fclose(pFile);
+			pClient->CloseSocket();
+			return;
+		}
+		long long nCount = 0;
+		while (nCount < nLength)
+		{
+			ret = pClient->DealCommand();
+			if (ret < 0)
+			{
+				AfxMessageBox("传输失败!!!");
+				TRACE("传输失败: ret = %d\r\n", ret);
+				break;
+			}
+			fwrite(pClient->GetPacket().strData.c_str(), 1, pClient->GetPacket().strData.size(), pFile);
+			nCount += pClient->GetPacket().strData.size();
+		}
+		fclose(pFile);
+		pClient->CloseSocket();
+	}
+	m_dlgStatus.ShowWindow(SW_HIDE);
+	EndWaitCursor();
+	MessageBox(_T("下载完成"));
+}
+
 void CRemoteClientDlg::LoadFileCurrent()//删除或下载文件后调用该函数实现列表刷新
 {
 	HTREEITEM hTree = m_Tree.GetSelectedItem();
@@ -252,7 +322,6 @@ void CRemoteClientDlg::LoadFileCurrent()//删除或下载文件后调用该函�
 		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
 	}
 	pClient->CloseSocket();
-	//TODO: bug, 文件夹的列表显示不全
 }
 
 void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)与文件(m_List)
@@ -306,7 +375,6 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 	}
 
 	pClient->CloseSocket();
-	//TODO: bug, 文件夹和文件的列表显示不全
 	TRACE("counts = %d\r\n", counts);
 }
 
@@ -361,67 +429,23 @@ void CRemoteClientDlg::OnNMRClickListFile(NMHDR* pNMHDR, LRESULT* pResult)
 		return;
 	CMenu menu;
 	menu.LoadMenu(IDR_MENU_RCLICK);//加载整个菜单
-	CMenu* pPupup = menu.GetSubMenu(0);//取整个菜单的子菜单的第一个, 即下载文件
+	CMenu* pPupup = menu.GetSubMenu(0);//取整个菜单的子菜单的第一个
 	if (pPupup != nullptr)
 	{
 		pPupup->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, ptMouse.x, ptMouse.y, this);
 	}
 }
 
-
 void CRemoteClientDlg::OnDownloadFile()//点击下载文件的事件处理程序(函数)
 {
-	int nListSelected = m_List.GetSelectionMark();//获得选择的标记(m_List文件列表下选中的那个框)
-	CString strFile = m_List.GetItemText(nListSelected, 0);//拿到文件名
-	//在本地(客户端)为要下载的文件创建环境, dlg对象包含要下载的文件名, 下载路径等一些信息
-	CFileDialog dlg(false, "*",
-		strFile, OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY, nullptr, this);
-	if (dlg.DoModal() == IDOK)
-	{
-		FILE* pFile = fopen(dlg.GetPathName(), "wb+");
-		if (pFile == nullptr)
-		{
-			AfxMessageBox("本地没有权限保存该文件, 或者文件无法创建!!!");
-			return;
-		}
-		HTREEITEM hSelected = m_Tree.GetSelectedItem();
-		strFile = GetPath(hSelected) + strFile;//获取文件完整路径
-		TRACE("%s\r\n", LPCSTR(strFile));
-		int ret = SendCommandPacket(4, false, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
-		CClientSocket* pClient = CClientSocket::getInstance();
-		if (ret < 0)
-		{
-			AfxMessageBox("执行下载命令失败!!!");
-			TRACE("执行下载失败: ret = %d\r\n", ret);
-			fclose(pFile);
-			pClient->CloseSocket();
-			return;
-		}
-		long long nLength = *(long long*)pClient->GetPacket().strData.c_str();
-		if (nLength == 0)
-		{
-			AfxMessageBox("文件长度为零或者无法读取文件!!!");
-			fclose(pFile);
-			pClient->CloseSocket();
-			return;
-		}
-		long long nCount = 0;
-		while (nCount < nLength)
-		{
-			ret = pClient->DealCommand();
-			if (ret < 0)
-			{
-				AfxMessageBox("传输失败!!!");
-				TRACE("传输失败: ret = %d\r\n", ret);
-				break;
-			}
-			fwrite(pClient->GetPacket().strData.c_str(), 1, pClient->GetPacket().strData.size(), pFile);
-			nCount += pClient->GetPacket().strData.size();
-		}
-		fclose(pFile);
-		pClient->CloseSocket();
-	}
-	//TODO: 大文件传输需要额外的处理
+	//////添加线程处理函数
+	_beginthread(CRemoteClientDlg::threadEntryForDownFile, 0, this);
+	BeginWaitCursor();//将光标设置为一个沙漏, 表示等待状态
+	m_dlgStatus.m_info.SetWindowText(_T("命令正在执行中"));
+	m_dlgStatus.ShowWindow(SW_SHOW);
+	m_dlgStatus.CenterWindow(this);
+	m_dlgStatus.SetActiveWindow();
+	
 }
 
 
@@ -453,4 +477,11 @@ void CRemoteClientDlg::OnOpenFile()//点击打开文件的事件处理程序(函
 	{
 		AfxMessageBox("打开文件命令执行失败!!!");
 	}
+}
+
+LRESULT CRemoteClientDlg::OnSendPacket(WPARAM wParam, LPARAM lParam)//第四步: 定义消息响应函数
+{
+	CString strFile = (LPCSTR)lParam;
+	int ret = SendCommandPacket(wParam>>1, wParam & 1, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+	return ret;
 }
