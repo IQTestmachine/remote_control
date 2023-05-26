@@ -269,6 +269,7 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 
 	DeleteTreeChildrenItem(hTreeSelected);//重新点击时先清空原来的内容
 	m_List.DeleteAllItems();//重新点击时先清空原来的内容
+	int counts = 0;//文件夹与文件夹的总数量
 	CString strPath = GetPath(hTreeSelected);
 	TRACE("%s", strPath);
 	int cmd = SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
@@ -296,8 +297,9 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 		{
 			m_List.InsertItem(0, pInfo->szFileName);
 		}
+		counts++;
 		int cmd = pClient->DealCommand();
-		TRACE("ack: %d\r\n", cmd);
+		//TRACE("ack: %d\r\n", cmd);
 		if (cmd < 0)
 			break;
 		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
@@ -305,6 +307,7 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 
 	pClient->CloseSocket();
 	//TODO: bug, 文件夹和文件的列表显示不全
+	TRACE("counts = %d\r\n", counts);
 }
 
 CString CRemoteClientDlg::GetPath(HTREEITEM hTree)//获取当前点击位置的详细路径

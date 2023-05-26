@@ -208,13 +208,13 @@ public:
 		if (m_client == -1)
 			return -1;
 		//char buffer[1024] = "";
-		char* buffer = new char[4096];
+		char* buffer = new char[BUFFER_SIZE];
 		if (buffer == nullptr)
 		{
 			TRACE("ÄÚ´æ²»×ã!");
 			return -2;
 		}
-		memset(buffer, 0, 4096);
+		memset(buffer, 0, BUFFER_SIZE);
 		size_t index = 0;
 		while (true)
 		{
@@ -249,7 +249,7 @@ public:
 	{
 		if (m_client == -1)
 			return false;
-		Dump((BYTE*)pack.Data(), pack.Size());
+		//Dump((BYTE*)pack.Data(), pack.Size());
 		return send(m_client, pack.Data(), pack.Size(), 0) > 0;
 	}
 

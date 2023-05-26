@@ -205,26 +205,32 @@ public:
 	}
 
 #define BUFFER_SIZE 4096
-	int DealCommand()//接收数据包
+	//客户端的DealCommand()与服务端的DealCommand()不同, 
+	//通常服务端的DealCommand只是获取客户端的操作命令, 服务端在关闭m_client套接字之前不会再调用该函数, 即服务端每次连接仅执行一条命令
+	//执行客户端的命令服务端可能发送大量数据包, 因此客户端需要多次调用DealCommand, 
+	//客户端会每次调用DealCommand只获取一个数据包, 然而TCP连接导致DealCommand里调用recv()函数可能接收到了大量数据, 
+	//这些数据不存在数据边界, 可能包括几个数据包和不完整的数据包, 
+	//因此增添了新的数据成员(接收缓冲区)m_buffer来使得调用DealCommand接收一个数据包之后剩余数据依旧存在
+	int DealCommand()//接收一个数据包
 	{
 		if (m_client == -1)
 			return -1;
 		//char buffer[1024] = "";
 		char* buffer = m_buffer.data();
-		memset(buffer, 0, 4096);
-		size_t index = 0;
+		static size_t index = 0;//index表示m_buffer中有多少个字节, 因此每次调用recv()和CPacket(const BYTE* pData, size_t& nSize)都需调整index
 		while (true)
 		{
 			size_t len = recv(m_client, buffer + index, BUFFER_SIZE - index, 0);
-			if (len <= 0)
+			if (len <= 0 && index <= 0)
 				return -1;
+
 			index += len;
-			len = index;
-			m_packet = CPacket((BYTE*)buffer, len);
-			if (len > 0)
+			size_t tmp = index;
+			m_packet = CPacket((BYTE*)buffer, tmp);//tmp表示从m_buffer中取出的数据包有多少个字节, 如果tmp等于0, 则代表并未取出任何数据
+			if (tmp > 0)//采用TCP连接, 不一定能从m_buffer中出一个数据包, 此时就要继续执行循环, 去recv()数据
 			{
-				memmove(buffer, buffer + len, BUFFER_SIZE - len);
-				index -= len;
+				memmove(buffer, buffer + tmp, index - tmp);//由于取出了一个数据包, 因此需要调整m_buffer
+				index -= tmp;
 				return m_packet.sCmd;
 			}
 		}
@@ -275,7 +281,7 @@ public:
 	}
 
 private:
-	std::vector<char> m_buffer;
+	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
 	CClientSocket()
@@ -286,6 +292,7 @@ private:
 			exit(0);
 		}
 		m_buffer.resize(BUFFER_SIZE);
+		memset(m_buffer.data(), 0, BUFFER_SIZE);
 	}
 	CClientSocket(const CClientSocket&) { }
 	CClientSocket& operator=(const CClientSocket& ss)

@@ -89,6 +89,7 @@ int MakeDirectoryInfo()
         CServerSocket::getInstance()->Send(pack);
         return -3;
     }
+    int counts = 0;//服务端发送了多少个文件夹和文件
     do {
         FILEINFO finfo;
         finfo.IsDirectory = (fdata.attrib & _A_SUBDIR) != 0;
@@ -97,7 +98,10 @@ int MakeDirectoryInfo()
         CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
         CServerSocket::getInstance()->Send(pack);//拿到一个文件就发送信息到控制端
         //lstFileInfos.push_back(finfo); 采用链表获取全部文件和文件夹,可能因文件和文件夹太多导致迟迟不能发送, 舍弃链表的方式
+        counts++;
     } while (!_findnext(hfind, &fdata));
+    
+    TRACE("server: counts = %d\r\n", counts);
     FILEINFO finfo;
     finfo.HasNext = false;
     CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
