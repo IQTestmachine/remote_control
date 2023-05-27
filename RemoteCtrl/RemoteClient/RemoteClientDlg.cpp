@@ -143,6 +143,7 @@ BOOL CRemoteClientDlg::OnInitDialog()
 	UpdateData(FALSE);
 	m_dlgStatus.Create(IDD_DIG_STATUS, this);
 	m_dlgStatus.ShowWindow(SW_HIDE);
+	m_isFull = false;
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -231,6 +232,40 @@ void CRemoteClientDlg::OnBnClickedButFileinfo()
 		}
 	}
 
+}
+
+void CRemoteClientDlg::threadEntryForWatchData(void* arg)
+{
+	CRemoteClientDlg* thiz = (CRemoteClientDlg*)arg;
+	thiz->threadWatchData();
+	_endthread();
+}
+
+void CRemoteClientDlg::threadWatchData()
+{
+	CClientSocket* pClient = nullptr;
+	do {
+		pClient = CClientSocket::getInstance();
+	} while (pClient == nullptr);
+	while (true)
+	{
+		CPacket pack(6, nullptr, 0);
+		bool ret = pClient->Send(pack);
+		if (ret)
+		{
+			int cmd = pClient->DealCommand();//拿到服务端发送来的截图数据包
+			if (cmd == 6)
+			{
+				BYTE* pData = (BYTE*)pClient->GetPacket().strData.c_str();
+				//TODO:存入CImage
+				m_isFull = true;
+			}
+		}
+		else
+		{
+			Sleep(1);
+		}
+	}
 }
 
 void CRemoteClientDlg::threadEntryForDownFile(void* arg)
