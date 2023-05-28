@@ -83,7 +83,7 @@ void CWatchDialog::OnTimer(UINT_PTR nIDEvent)
 			pParent->GetImage().StretchBlt(
 				m_picture.GetDC()->GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), SRCCOPY);
 			m_picture.InvalidateRect(nullptr);
-			//pParent->GetImage().Destroy();在m_image。Load()使用了m_Destroy(), 这里不再调用
+			//pParent->GetImage().Destroy(); //在m_image。Load()使用了m_Destroy(), 这里似乎不用再调用
 			pParent->SetImageStatus();
 		}
 	}
