@@ -11,7 +11,7 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
+#include "WatchDialog.h"
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -68,8 +68,11 @@ void CRemoteClientDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 
-//非常重要的函数! 该函数建立客户端套接字与服务端套接字的连接
+//非常重要的函数! 该函数将多种功能封装在了一起
+//建立客户端套接字与服务端套接字的连接, 发送客户端的命令, 接收服务端处理命令后发送的一部分数据并从中解析出一个数据包
 //每次调用该函数会重新建立客户端套接字与服务端套接字的连接, 并且注意88行注释
+//注: 个人理解如果把这么多功能封装在一起, 至少应该改变一下函数名称的命名方式
+//而且DealCommand()只能接收一部分数据并解析出一个数据包, 在这个函数里调用它应该不合理
 int CRemoteClientDlg::SendCommandPacket(int nCmd, bool bAutoClose, BYTE* pData, size_t nLength)
 {
 	UpdateData();//? 把数据从界面更新到全局变量(不理解)
@@ -83,7 +86,7 @@ int CRemoteClientDlg::SendCommandPacket(int nCmd, bool bAutoClose, BYTE* pData, 
 	CPacket pack(nCmd, pData, nLength);
 	pClient->Send(pack);
 	int cmd = pClient->DealCommand();
-	TRACE("ack: %d\r\n", pClient->GetPacket().sCmd);
+	//TRACE("ack: %d\r\n", pClient->GetPacket().sCmd);
 	if (bAutoClose)//注意, 由于该条件导致该函数执行完毕前客户端套接字不一定关闭, 因此如果不采用默认参数应编写额外代码主动关闭客户端套接字
 		pClient->CloseSocket();
 	return cmd;
@@ -102,6 +105,8 @@ BEGIN_MESSAGE_MAP(CRemoteClientDlg, CDialogEx)
 	ON_COMMAND(ID_DELETE_FILE, &CRemoteClientDlg::OnDeleteFile)
 	ON_COMMAND(ID_OPEN_FILE, &CRemoteClientDlg::OnOpenFile)
 	ON_MESSAGE(WM_SEND_PACKET, &CRemoteClientDlg::OnSendPacket)//第三步: 注册消息
+	ON_BN_CLICKED(IDC_BTN_START_WATCH, &CRemoteClientDlg::OnBnClickedBtnStartWatch)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -215,7 +220,7 @@ void CRemoteClientDlg::OnBnClickedButFileinfo()
 	}
 	CClientSocket* pClient = CClientSocket::getInstance();
 	std::string drivers = pClient->GetPacket().strData;
-	TRACE("drivers = %s", drivers.c_str());
+	TRACE("drivers = %s\r\n", drivers.c_str());
 	std::string dr;
 	m_Tree.DeleteAllItems();//因为被控制端的文件目录是一个树结构, 所以这里添加的变量m_Tree应该是一个树. 这里的函数目标是清空树, 防止因为多次点击导致树越来越大
 	for (size_t i = 0; i < drivers.size(); i++)
@@ -243,22 +248,44 @@ void CRemoteClientDlg::threadEntryForWatchData(void* arg)
 
 void CRemoteClientDlg::threadWatchData()
 {
+	Sleep(50);
 	CClientSocket* pClient = nullptr;
 	do {
 		pClient = CClientSocket::getInstance();
 	} while (pClient == nullptr);
+	ULONGLONG tick = GetTickCount64();
 	while (true)
 	{
-		CPacket pack(6, nullptr, 0);
-		bool ret = pClient->Send(pack);
-		if (ret)
+		if (m_isFull == false)//将截图数据存入到缓存
 		{
-			int cmd = pClient->DealCommand();//拿到服务端发送来的截图数据包
-			if (cmd == 6)
+			int ret = SendMessage(WM_SEND_PACKET, 6 << 1 | 1);//通过消息函数给主线程发送消息, 拿到服务端发送来的截图数据包
+			if (ret == 6)
 			{
 				BYTE* pData = (BYTE*)pClient->GetPacket().strData.c_str();
-				//TODO:存入CImage
-				m_isFull = true;
+				HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, 0);
+				if (hMem == nullptr)
+				{
+					TRACE("客户端内存不足, 无法缓存截图!");
+					Sleep(1);
+					continue;
+				}
+				IStream* pStream = nullptr;
+				HRESULT ret = CreateStreamOnHGlobal(hMem, true, &pStream);
+				if (ret == S_OK)
+				{
+					ULONG length = 0;
+					pStream->Write(pData, pClient->GetPacket().strData.size(), &length);
+					TRACE("length = %d", length);
+					LARGE_INTEGER bg = { 0 };
+					pStream->Seek(bg, STREAM_SEEK_SET, nullptr);
+					m_image.Destroy();
+					m_image.Load(pStream);
+					m_isFull = true;
+				}
+			}
+			else
+			{
+				Sleep(1);
 			}
 		}
 		else
@@ -307,6 +334,7 @@ void CRemoteClientDlg::threadDownFile()
 			return;
 		}
 		long long nLength = *(long long*)pClient->GetPacket().strData.c_str();
+		TRACE("文件的长度是%lld\r\n", nLength);
 		if (nLength == 0)
 		{
 			AfxMessageBox("文件长度为零或者无法读取文件!!!");
@@ -322,11 +350,14 @@ void CRemoteClientDlg::threadDownFile()
 			{
 				AfxMessageBox("传输失败!!!");
 				TRACE("传输失败: ret = %d\r\n", ret);
-				break;
+				fclose(pFile);
+				pClient->CloseSocket();
+				return;
 			}
 			fwrite(pClient->GetPacket().strData.c_str(), 1, pClient->GetPacket().strData.size(), pFile);
 			nCount += pClient->GetPacket().strData.size();
 		}
+		pClient->DealCommand();//需处理服务端最后发送的空包, 否则短时间内再次点击下载文件会出现问题
 		fclose(pFile);
 		pClient->CloseSocket();
 	}
@@ -335,7 +366,7 @@ void CRemoteClientDlg::threadDownFile()
 	MessageBox(_T("下载完成"));
 }
 
-void CRemoteClientDlg::LoadFileCurrent()//删除或下载文件后调用该函数实现列表刷新
+void CRemoteClientDlg::LoadFileCurrent()//删除文件后调用该函数实现列表刷新
 {
 	HTREEITEM hTree = m_Tree.GetSelectedItem();
 	CString strPath = GetPath(hTree);
@@ -365,37 +396,37 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 	GetCursorPos(&ptMouse);
 	m_Tree.ScreenToClient(&ptMouse);
 	HTREEITEM hTreeSelected = m_Tree.HitTest(ptMouse, 0);
-	if (hTreeSelected == nullptr)//检测是否双击了按钮
+	if (hTreeSelected == nullptr)//检测是否双击或单击
 		return;
 
-	if (m_Tree.GetChildItem(hTreeSelected) == nullptr)
-		return;
+	/*if (m_Tree.GetChildItem(hTreeSelected) == nullptr)
+		return;*/
 
 	DeleteTreeChildrenItem(hTreeSelected);//重新点击时先清空原来的内容
 	m_List.DeleteAllItems();//重新点击时先清空原来的内容
 	int counts = 0;//文件夹与文件夹的总数量
 	CString strPath = GetPath(hTreeSelected);
-	TRACE("%s", strPath);
+	//TRACE("%s\r\n", strPath);
 	int cmd = SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
-	TRACE("%d", cmd);
+	//TRACE("%d\r\n", cmd);
 	CClientSocket* pClient = CClientSocket::getInstance();
 	PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
 	while (pInfo->HasNext)
 	{
-		TRACE("szFilename = %s, IsDirectory = %d\r\n", pInfo->szFileName, pInfo->IsDirectory);
+		//TRACE("szFilename = %s, IsDirectory = %d, HasNext = %d\r\n", pInfo->szFileName, pInfo->IsDirectory, pInfo->HasNext);
 		if (pInfo->IsDirectory)
 		{
 			if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
 			{
 				int cmd = pClient->DealCommand();
-				TRACE("ack: %d\r\n", cmd);
+				//TRACE("ack: %d\r\n", cmd);
 				if (cmd < 0)
 					break;
 				pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
 				continue;				
 			}
 			HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
-			m_Tree.InsertItem("", hTmp, TVI_LAST);
+			m_Tree.InsertItem("", hTmp, TVI_LAST);//似乎没有必要追加空字符串
 		}
 		else
 		{
@@ -410,7 +441,7 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 	}
 
 	pClient->CloseSocket();
-	TRACE("counts = %d\r\n", counts);
+	//TRACE("counts = %d\r\n", counts);
 }
 
 CString CRemoteClientDlg::GetPath(HTREEITEM hTree)//获取当前点击位置的详细路径
@@ -480,7 +511,6 @@ void CRemoteClientDlg::OnDownloadFile()//点击下载文件的事件处理程序
 	m_dlgStatus.ShowWindow(SW_SHOW);
 	m_dlgStatus.CenterWindow(this);
 	m_dlgStatus.SetActiveWindow();
-	
 }
 
 
@@ -516,7 +546,40 @@ void CRemoteClientDlg::OnOpenFile()//点击打开文件的事件处理程序(函
 
 LRESULT CRemoteClientDlg::OnSendPacket(WPARAM wParam, LPARAM lParam)//第四步: 定义消息响应函数
 {
-	CString strFile = (LPCSTR)lParam;
-	int ret = SendCommandPacket(wParam>>1, wParam & 1, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+	int ret = 0;
+	int cmd = wParam >> 1;
+	switch (cmd)
+	{
+	case 4:
+	{
+		CString strFile = (LPCSTR)lParam;
+		TRACE("%d\r\n", wParam & 1);
+		ret = SendCommandPacket(cmd, wParam & 1, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
+		break;
+	}	
+	case 6:
+	{
+		ret = SendCommandPacket(cmd, wParam & 1);
+		break;
+	}
+	default:
+		ret = -1;
+	}
+	
 	return ret;
+}
+
+
+void CRemoteClientDlg::OnBnClickedBtnStartWatch()
+{
+	CWatchDialog dlg(this);
+	_beginthread(CRemoteClientDlg::threadEntryForWatchData, 0, this);
+	dlg.DoModal();
+}
+
+
+void CRemoteClientDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	CDialogEx::OnTimer(nIDEvent);
 }

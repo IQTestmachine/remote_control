@@ -94,14 +94,14 @@ int MakeDirectoryInfo()
         FILEINFO finfo;
         finfo.IsDirectory = (fdata.attrib & _A_SUBDIR) != 0;
         memcpy(finfo.szFileName, fdata.name, strlen(fdata.name));
-        TRACE("%s\r\n", finfo.szFileName);
+        //TRACE("%s\r\n", finfo.szFileName);
         CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
         CServerSocket::getInstance()->Send(pack);//拿到一个文件就发送信息到控制端
         //lstFileInfos.push_back(finfo); 采用链表获取全部文件和文件夹,可能因文件和文件夹太多导致迟迟不能发送, 舍弃链表的方式
         counts++;
     } while (!_findnext(hfind, &fdata));
     
-    TRACE("server: counts = %d\r\n", counts);
+    //TRACE("server: counts = %d\r\n", counts);
     FILEINFO finfo;
     finfo.HasNext = false;
     CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
@@ -123,6 +123,7 @@ int DownloadFile()
 {
     std::string strPath;
     CServerSocket::getInstance()->GetFilePath(strPath);
+    TRACE(("服务端即将传输的文件路径是%s\r\n"), strPath);
     long long data = 0;
     FILE* pFile = nullptr;
     errno_t err = fopen_s(&pFile, strPath.c_str(), "rb");
@@ -137,6 +138,7 @@ int DownloadFile()
         fseek(pFile, 0, SEEK_END);
         data = _ftelli64(pFile);
         CPacket head(4, (BYTE*)&data, 8);
+        TRACE("服务端即将发送的文件的长度是%lld\r\n", *(long long*)head.strData.c_str());
         CServerSocket::getInstance()->Send(head);
         fseek(pFile, 0, SEEK_SET);
         char buffer[1024] = "";
@@ -270,12 +272,12 @@ int SendScreen()
     HRESULT ret = CreateStreamOnHGlobal(hMem, true, &pStream);
     if (ret == S_OK)
     {
-        screen.Save(pStream, Gdiplus::ImageFormatJPEG);//把截图的数据信息保存在一个输入流中
+        screen.Save(pStream, Gdiplus::ImageFormatPNG);//把截图的数据信息保存在一个输入流中
         LARGE_INTEGER bg = { 0 };
         pStream->Seek(bg, STREAM_SEEK_SET, nullptr);//将流重新定位到保存信息的开头位置
         PBYTE pData = PBYTE(GlobalLock(hMem));
         SIZE_T nSize = GlobalSize(hMem);
-        CPacket pack(6, nullptr, nSize);
+        CPacket pack(6, pData, nSize);
         CServerSocket::getInstance()->Send(pack);
         GlobalUnlock(hMem);
     }

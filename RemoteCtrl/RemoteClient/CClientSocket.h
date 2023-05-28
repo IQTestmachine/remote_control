@@ -123,7 +123,7 @@ public:
 
 	~CPacket() { };
 public:
-	WORD sHead;//包头, 固定位FE FF
+	WORD sHead;//包头, 固定位FE FE
 	DWORD nLength;//包长度(从控制命令开始,到校验和结束)
 	WORD sCmd;//控制命令
 	std::string strData;//包数据
@@ -204,7 +204,7 @@ public:
 		return true;
 	}
 
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 409600
 	//客户端的DealCommand()与服务端的DealCommand()不同, 
 	//通常服务端的DealCommand只是获取客户端的操作命令, 服务端在关闭m_client套接字之前不会再调用该函数, 即服务端每次连接仅执行一条命令
 	//执行客户端的命令服务端可能发送大量数据包, 因此客户端需要多次调用DealCommand, 
@@ -214,7 +214,10 @@ public:
 	int DealCommand()//接收一个数据包
 	{
 		if (m_client == -1)
+		{
+			TRACE("客户端连接关闭");
 			return -1;
+		}	
 		//char buffer[1024] = "";
 		char* buffer = m_buffer.data();
 		static size_t index = 0;//index表示m_buffer中有多少个字节, 因此每次调用recv()和CPacket(const BYTE* pData, size_t& nSize)都需调整index
@@ -222,11 +225,16 @@ public:
 		{
 			size_t len = recv(m_client, buffer + index, BUFFER_SIZE - index, 0);
 			if (len <= 0 && index <= 0)
+			{
+				//m_buffer.clear();
+				TRACE("接收数据有问题, len = %d, index = %d\r\n", len, index);
 				return -1;
-
+			}
 			index += len;
+			TRACE("buffer + index = %x, len = %d", buffer + index, len);
 			size_t tmp = index;
 			m_packet = CPacket((BYTE*)buffer, tmp);//tmp表示从m_buffer中取出的数据包有多少个字节, 如果tmp等于0, 则代表并未取出任何数据
+			TRACE("解包的长度是%lld %d\r\n", *(long long*)m_packet.strData.c_str(), m_packet.nLength);
 			if (tmp > 0)//采用TCP连接, 不一定能从m_buffer中出一个数据包, 此时就要继续执行循环, 去recv()数据
 			{
 				memmove(buffer, buffer + tmp, index - tmp);//由于取出了一个数据包, 因此需要调整m_buffer
@@ -234,6 +242,7 @@ public:
 				return m_packet.sCmd;
 			}
 		}
+
 		return -1;
 	}
 

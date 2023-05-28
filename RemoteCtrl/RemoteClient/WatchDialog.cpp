@@ -1,0 +1,71 @@
+﻿// WatchDialog.cpp: 实现文件
+//
+
+#include "pch.h"
+#include "RemoteClient.h"
+#include "afxdialogex.h"
+#include "WatchDialog.h"
+#include "RemoteClientDlg.h"
+
+
+// CWatchDialog 对话框
+
+IMPLEMENT_DYNAMIC(CWatchDialog, CDialogEx)
+
+CWatchDialog::CWatchDialog(CWnd* pParent /*=nullptr*/)
+	: CDialogEx(IDD_DIALOG_WATCH, pParent)
+{
+
+}
+
+CWatchDialog::~CWatchDialog()
+{
+}
+
+void CWatchDialog::DoDataExchange(CDataExchange* pDX)
+{
+	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_WATCH, m_picture);
+}
+
+
+BEGIN_MESSAGE_MAP(CWatchDialog, CDialogEx)
+	ON_WM_TIMER()
+END_MESSAGE_MAP()
+
+
+// CWatchDialog 消息处理程序
+
+
+BOOL CWatchDialog::OnInitDialog()
+{
+	CDialogEx::OnInitDialog();
+	SetTimer(0, 50, nullptr);
+	// TODO:  在此添加额外的初始化
+
+	return TRUE;  // return TRUE unless you set the focus to a control
+	// 异常: OCX 属性页应返回 FALSE
+}
+
+
+void CWatchDialog::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	if (nIDEvent == 0)
+	{
+		CRemoteClientDlg* pParent = (CRemoteClientDlg*)GetParent();
+		if (pParent->isFull())
+		{
+			//pParent->GetImage().BitBlt(m_picture.GetDC()->GetSafeHdc(), 0, 0, SRCCOPY);
+			CRect rect;
+			m_picture.GetWindowRect(rect);
+			pParent->GetImage().StretchBlt(
+				m_picture.GetDC()->GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), SRCCOPY);
+			m_picture.InvalidateRect(nullptr);
+			pParent->GetImage().Destroy();
+			pParent->SetImageStatus();
+
+		}
+	}
+	CDialogEx::OnTimer(nIDEvent);
+}

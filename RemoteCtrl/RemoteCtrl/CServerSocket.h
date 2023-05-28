@@ -232,6 +232,7 @@ public:
 				memmove(buffer, buffer + len, BUFFER_SIZE - len);
 				index -= len;
 				delete[] buffer;
+				TRACE("服务端收到的命令号是%d\r\n", m_packet.sCmd);
 				return m_packet.sCmd;
 			}		
 		}
