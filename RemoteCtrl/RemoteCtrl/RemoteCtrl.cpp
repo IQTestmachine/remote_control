@@ -123,7 +123,7 @@ int DownloadFile()
 {
     std::string strPath;
     CServerSocket::getInstance()->GetFilePath(strPath);
-    TRACE(("服务端即将传输的文件路径是%s\r\n"), strPath);
+    //TRACE(("服务端即将传输的文件路径是%s\r\n"), strPath);
     long long data = 0;
     FILE* pFile = nullptr;
     errno_t err = fopen_s(&pFile, strPath.c_str(), "rb");
@@ -138,7 +138,7 @@ int DownloadFile()
         fseek(pFile, 0, SEEK_END);
         data = _ftelli64(pFile);
         CPacket head(4, (BYTE*)&data, 8);
-        TRACE("服务端即将发送的文件的长度是%lld\r\n", *(long long*)head.strData.c_str());
+        //TRACE("服务端即将发送的文件的长度是%lld\r\n", *(long long*)head.strData.c_str());
         CServerSocket::getInstance()->Send(head);
         fseek(pFile, 0, SEEK_SET);
         char buffer[1024] = "";
@@ -263,7 +263,7 @@ int SendScreen()
     int nWidth = GetDeviceCaps(hScreen, HORZRES);
     int nHeight = GetDeviceCaps(hScreen, VERTRES);
     screen.Create(nWidth, nHeight, nBitPerPixel);
-    BitBlt(screen.GetDC(), 0, 0, 1920, 1020, hScreen, 0, 0, SRCCOPY);//获取截图
+    BitBlt(screen.GetDC(), 0, 0, 1920, 1080, hScreen, 0, 0, SRCCOPY);//获取截图
     ReleaseDC(nullptr, hScreen);
     HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, 0);
     if (hMem == nullptr)

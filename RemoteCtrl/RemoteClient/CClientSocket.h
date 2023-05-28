@@ -204,7 +204,7 @@ public:
 		return true;
 	}
 
-#define BUFFER_SIZE 409600
+#define BUFFER_SIZE 2048000
 	//客户端的DealCommand()与服务端的DealCommand()不同, 
 	//通常服务端的DealCommand只是获取客户端的操作命令, 服务端在关闭m_client套接字之前不会再调用该函数, 即服务端每次连接仅执行一条命令
 	//执行客户端的命令服务端可能发送大量数据包, 因此客户端需要多次调用DealCommand, 
@@ -226,15 +226,14 @@ public:
 			size_t len = recv(m_client, buffer + index, BUFFER_SIZE - index, 0);
 			if (len <= 0 && index <= 0)
 			{
-				//m_buffer.clear();
-				TRACE("接收数据有问题, len = %d, index = %d\r\n", len, index);
+				//TRACE("接收数据有问题, len = %d, index = %d\r\n", len, index);
 				return -1;
 			}
 			index += len;
-			TRACE("buffer + index = %x, len = %d", buffer + index, len);
+			//TRACE("buffer + index = %x, len = %d\r\n", buffer + index, len);
 			size_t tmp = index;
 			m_packet = CPacket((BYTE*)buffer, tmp);//tmp表示从m_buffer中取出的数据包有多少个字节, 如果tmp等于0, 则代表并未取出任何数据
-			TRACE("解包的长度是%lld %d\r\n", *(long long*)m_packet.strData.c_str(), m_packet.nLength);
+			//TRACE("解包的长度是%lld %d\r\n", *(long long*)m_packet.strData.c_str(), m_packet.nLength);
 			if (tmp > 0)//采用TCP连接, 不一定能从m_buffer中出一个数据包, 此时就要继续执行循环, 去recv()数据
 			{
 				memmove(buffer, buffer + tmp, index - tmp);//由于取出了一个数据包, 因此需要调整m_buffer

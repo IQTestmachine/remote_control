@@ -196,7 +196,7 @@ public:
 		sockaddr_in client_adr;
 		int cli_sz = sizeof(client_adr);
 		m_client = accept(m_server, (sockaddr*)&client_adr, &cli_sz);
-		TRACE("m_client = %d\r\n", m_client);
+		//TRACE("m_client = %d\r\n", m_client);
 		if (m_client == -1)
 			return false;
 		return true;
@@ -232,7 +232,7 @@ public:
 				memmove(buffer, buffer + len, BUFFER_SIZE - len);
 				index -= len;
 				delete[] buffer;
-				TRACE("服务端收到的命令号是%d\r\n", m_packet.sCmd);
+				//TRACE("服务端收到的命令号是%d\r\n", m_packet.sCmd);
 				return m_packet.sCmd;
 			}		
 		}

@@ -275,7 +275,7 @@ void CRemoteClientDlg::threadWatchData()
 				{
 					ULONG length = 0;
 					pStream->Write(pData, pClient->GetPacket().strData.size(), &length);
-					TRACE("length = %d", length);
+					//TRACE("length = %d", length);
 					LARGE_INTEGER bg = { 0 };
 					pStream->Seek(bg, STREAM_SEEK_SET, nullptr);
 					m_image.Destroy();
@@ -334,7 +334,7 @@ void CRemoteClientDlg::threadDownFile()
 			return;
 		}
 		long long nLength = *(long long*)pClient->GetPacket().strData.c_str();
-		TRACE("文件的长度是%lld\r\n", nLength);
+		//TRACE("文件的长度是%lld\r\n", nLength);
 		if (nLength == 0)
 		{
 			AfxMessageBox("文件长度为零或者无法读取文件!!!");
@@ -556,7 +556,12 @@ LRESULT CRemoteClientDlg::OnSendPacket(WPARAM wParam, LPARAM lParam)//第四步:
 		TRACE("%d\r\n", wParam & 1);
 		ret = SendCommandPacket(cmd, wParam & 1, (BYTE*)(LPCSTR)strFile, strFile.GetLength());
 		break;
-	}	
+	}
+	case 5:
+	{
+		ret = SendCommandPacket(cmd, wParam & 1, (BYTE*)lParam, sizeof(MOUSEEV));
+		break;
+	}
 	case 6:
 	{
 		ret = SendCommandPacket(cmd, wParam & 1);
