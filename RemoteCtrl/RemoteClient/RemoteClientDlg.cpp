@@ -143,7 +143,7 @@ BOOL CRemoteClientDlg::OnInitDialog()
 
 	// TODO: 在此添加额外的初始化代码
 	UpdateData();
-	m_server_address = 0x7F000001;
+	m_server_address = 0xC0A8D382;//192.168.211.130 //0x7F000001 127.0.0.1;
 	m_nPort = _T("9527");
 	UpdateData(FALSE);
 	m_dlgStatus.Create(IDD_DIG_STATUS, this);
@@ -246,7 +246,7 @@ void CRemoteClientDlg::threadEntryForWatchData(void* arg)
 	_endthread();
 }
 
-void CRemoteClientDlg::threadWatchData()
+void CRemoteClientDlg::threadWatchData()//可能存在线程异步问题
 {
 	Sleep(50);
 	CClientSocket* pClient = nullptr;
@@ -254,7 +254,7 @@ void CRemoteClientDlg::threadWatchData()
 		pClient = CClientSocket::getInstance();
 	} while (pClient == nullptr);
 	ULONGLONG tick = GetTickCount64();
-	while (true)
+	while (!m_isClosed)
 	{
 		if (m_isFull == false)//将截图数据存入到缓存
 		{
@@ -278,7 +278,8 @@ void CRemoteClientDlg::threadWatchData()
 					//TRACE("length = %d", length);
 					LARGE_INTEGER bg = { 0 };
 					pStream->Seek(bg, STREAM_SEEK_SET, nullptr);
-					m_image.Destroy();
+					if ((HBITMAP)m_image != nullptr)
+						m_image.Destroy();
 					m_image.Load(pStream);
 					m_isFull = true;
 				}
@@ -577,9 +578,12 @@ LRESULT CRemoteClientDlg::OnSendPacket(WPARAM wParam, LPARAM lParam)//第四步:
 
 void CRemoteClientDlg::OnBnClickedBtnStartWatch()
 {
+	m_isClosed = false;
 	CWatchDialog dlg(this);
-	_beginthread(CRemoteClientDlg::threadEntryForWatchData, 0, this);
+	HANDLE hThread = (HANDLE)_beginthread(CRemoteClientDlg::threadEntryForWatchData, 0, this);
 	dlg.DoModal();
+	m_isClosed = true;
+	WaitForSingleObject(hThread, 500);
 }
 
 
