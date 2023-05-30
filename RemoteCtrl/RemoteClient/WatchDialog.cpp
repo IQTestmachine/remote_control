@@ -50,15 +50,14 @@ END_MESSAGE_MAP()
 
 CPoint CWatchDialog::UserPointtoRemotePoint(CPoint& point, bool isScreen)
 {
-	//800×450
 	CRect clientRect;
-	TRACE("客户端鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
 	if (isScreen == true)
 		ScreenToClient(&point);//全局坐标到相对坐标
+	TRACE("客户端鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
 	m_picture.GetWindowRect(clientRect);
-	//TRACE("x = %d, y = %d\r\n", clientRect.Width(), clientRect.Height());
-	//转换到客户端屏幕坐标
-	return CPoint(point.x * m_nObjWidth / clientRect.Width(), point.y * m_nObjHeight / clientRect.Height());
+	TRACE("客户端监视窗口的宽高: width = %d, height = %d\r\n", clientRect.Width(), clientRect.Height());
+	//转换到服务端屏幕坐标
+	return CPoint(point.x * m_nObjWidth / clientRect.Width(), (point.y - 76) * m_nObjHeight / clientRect.Height());//!注意减去76
 }
 
 BOOL CWatchDialog::OnInitDialog()
@@ -92,6 +91,7 @@ void CWatchDialog::OnTimer(UINT_PTR nIDEvent)
 				m_nObjWidth = pParent->GetImage().GetWidth();
 			if (m_nObjHeight == -1)
 				m_nObjHeight = pParent->GetImage().GetHeight();
+			//TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
 			pParent->GetImage().Destroy(); //在m_image。Load()使用了m_Destroy(), 这里似乎不用再调用
 			pParent->SetImageStatus();
 		}
@@ -104,8 +104,10 @@ void CWatchDialog::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
+		TRACE("进入监控鼠标左键抬起函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
+		TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
 		//封装
 		MOUSEEV event;
 		event.ptXY = remote;
@@ -121,6 +123,7 @@ void CWatchDialog::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
+		TRACE("进入监控鼠标左键双击函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -139,14 +142,16 @@ void CWatchDialog::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
+		TRACE("进入监控鼠标左键按下函数\r\n");
+		TRACE("最初获取的鼠标位置: x = %d, y = %d\r\n", point.x, point.y);
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
+		TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
 		//封装
 		MOUSEEV event;
 		event.ptXY = remote;
 		event.nButton = 0;//左键
 		event.nAction = 2;//按下
-		TRACE("point.x = %d, point.y = %d\r\n", point.x, point.y);
 		CRemoteClientDlg* pParent = (CRemoteClientDlg*)GetParent();
 		pParent->SendMessage(WM_SEND_PACKET, 5 << 1 | 1, (WPARAM) & event);
 	}
@@ -158,6 +163,7 @@ void CWatchDialog::OnRButtonDblClk(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
+		TRACE("进入监控鼠标右键双击函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -176,6 +182,7 @@ void CWatchDialog::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
+		TRACE("进入监控鼠标右键按下函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -194,6 +201,7 @@ void CWatchDialog::OnRButtonUp(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
+		TRACE("进入监控鼠标右键弹开函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -215,7 +223,7 @@ void CWatchDialog::OnMouseMove(UINT nFlags, CPoint point)
 		TRACE("进入监控鼠标移动函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
-		TRACE("转变为服务端的鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
+		//TRACE("转变为服务端的鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
 		//封装
 		MOUSEEV event;
 		event.ptXY = remote;
@@ -227,17 +235,16 @@ void CWatchDialog::OnMouseMove(UINT nFlags, CPoint point)
 	CDialogEx::OnMouseMove(nFlags, point);
 }
 
-void CWatchDialog::OnStnClickedWatch()
+void CWatchDialog::OnStnClickedWatch()//无法进入左键单击函数, 该函数似乎已经失效
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
 		TRACE("进入监控鼠标单击函数\r\n");
 		CPoint point;
 		GetCursorPos(&point);
-		TRACE("转变为服务端的鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point, true);
-		//TRACE("point.x = %d, point.y = %d\r\n", point.x, point.y);
+		TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
 		//封装
 		MOUSEEV event;
 		event.ptXY = remote;

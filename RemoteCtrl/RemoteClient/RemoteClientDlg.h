@@ -80,9 +80,6 @@ public:
 	DWORD m_server_address;
 	afx_msg void OnBnClickedButFileinfo();
 	CTreeCtrl m_Tree;
-	/*afx_msg void OnNMDblclkTreeDir(NMHDR* pNMHDR, LRESULT* pResult);
-	显示文件
-	CListCtrl m_List;*/
 	afx_msg void OnNMDblclkTreeDir(NMHDR* pNMHDR, LRESULT* pResult);
 	// 文件列表
 	CListCtrl m_List;

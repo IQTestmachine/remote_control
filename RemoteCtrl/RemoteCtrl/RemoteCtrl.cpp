@@ -262,6 +262,7 @@ int SendScreen()
     int nBitPerPixel = GetDeviceCaps(hScreen, BITSPIXEL);//获取一个像素点所占的位宽(大小)RGB: 24bit ARGB888: 32bit RGB565: 16bit 
     int nWidth = GetDeviceCaps(hScreen, HORZRES);
     int nHeight = GetDeviceCaps(hScreen, VERTRES);
+    //TRACE("服务端发送的宽高是: nWidth = %d, nHeight = %d", nWidth, nHeight);
     screen.Create(nWidth, nHeight, nBitPerPixel);
     BitBlt(screen.GetDC(), 0, 0, nWidth, nHeight, hScreen, 0, 0, SRCCOPY);//获取截图
     ReleaseDC(nullptr, hScreen);
@@ -310,7 +311,6 @@ unsigned __stdcall threadLockDlg(void* arg)//线程处理函数
     rect.right = GetSystemMetrics(SM_CXFULLSCREEN);
     rect.bottom = GetSystemMetrics(SM_CYFULLSCREEN);
     dlg.MoveWindow(rect);//遮蔽后台窗口
-    dlg.MoveWindow(rect);
     CWnd* pText = dlg.GetDlgItem(IDC_STATIC);
     if (pText)
     {
@@ -371,7 +371,7 @@ int UnlockMachine()
     //dlg.SendMessage(WM_KEYDOWN, 0x41, 0x01E001);
     //::SendMessage(dlg.m_hWnd, WM_KEYDOWN, 0x41, 0x01E0001);
     PostThreadMessage(threadid, WM_KEYDOWN, 0x1B, 0);
-    CPacket pack(7, nullptr, 0);
+    CPacket pack(8, nullptr, 0);
     CServerSocket::getInstance()->Send(pack);
     return 0;
 }
