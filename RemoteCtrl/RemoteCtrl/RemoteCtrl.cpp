@@ -310,9 +310,22 @@ unsigned __stdcall threadLockDlg(void* arg)//线程处理函数
     rect.right = GetSystemMetrics(SM_CXFULLSCREEN);
     rect.bottom = GetSystemMetrics(SM_CYFULLSCREEN);
     dlg.MoveWindow(rect);//遮蔽后台窗口
-    dlg.SetWindowPos(&dlg.wndTopMost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);//置顶, 对话框置于图层最前方
+    dlg.MoveWindow(rect);
+    CWnd* pText = dlg.GetDlgItem(IDC_STATIC);
+    if (pText)
+    {
+        CRect rtText;
+        pText->GetWindowRect(rtText);
+        int nWidth = rtText.Width();
+        int x = (rect.right - nWidth) / 2;
+        int nHeight = rtText.Height();
+        int y = (rect.bottom - nHeight) / 2;
+        pText->MoveWindow(x, y, nWidth, nHeight);
+    }
+    dlg.SetWindowPos(&dlg.wndTopMost, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);//窗口置顶, 对话框置于图层最前方
     ShowCursor(false);//限制鼠标, 使其在对话框内消失
     ::ShowWindow(::FindWindow(_T("Shell_TrayWnd"), nullptr), SW_HIDE);//隐藏任务栏
+    dlg.GetWindowRect(rect);//限制鼠标活动范围
     rect.left = 0;
     rect.top = 0;
     rect.right = 1;
@@ -332,6 +345,7 @@ unsigned __stdcall threadLockDlg(void* arg)//线程处理函数
             }
         }
     }
+    ClipCursor(nullptr);
     ShowCursor(true);
     ::ShowWindow(::FindWindow(_T("Shell_TrayWnd"), nullptr), SW_SHOW);//恢复任务栏
     dlg.DestroyWindow();
