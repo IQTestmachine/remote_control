@@ -73,7 +73,7 @@ int MakeDirectoryInfo()
         FILEINFO finfo;
         finfo.HasNext = false;
 		CPacket pack(2, (BYTE*)&finfo, sizeof(finfo));
-        CServerSocket::getInstance()->Send(pack);//拿到一个文件就发送信息到控制端
+        CServerSocket::getInstance()->Send(pack);
         //lstFileInfos.push_back(finfo); 
         OutputDebugString(_T("文件路径无效或没有权限访问目录!!!"));
         return -2;
