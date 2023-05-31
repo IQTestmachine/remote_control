@@ -237,9 +237,9 @@ void CWatchDialog::OnMouseMove(UINT nFlags, CPoint point)
 
 void CWatchDialog::OnStnClickedWatch()//无法进入左键单击函数, 该函数似乎已经失效
 {
+	TRACE("进入监控鼠标单击函数\r\n");
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标单击函数\r\n");
 		CPoint point;
 		GetCursorPos(&point);
 		//坐标转换
