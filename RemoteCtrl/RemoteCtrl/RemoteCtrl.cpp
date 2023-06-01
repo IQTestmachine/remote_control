@@ -88,42 +88,25 @@ int main()
         }
         else
         {
-            //// 从比较难的技术开始, 本项目从服务端(被控制端)的实现开始
-            //// 1.进度的可控性 2.对接的方便性 3.可行性评估,提早暴露风险
-            //// TODO: socket, blind, listen, accept, read, close
-            //// 套接字初始化          
+            // 从比较难的技术开始, 本项目从服务端(被控制端)的实现开始
+            // 1.进度的可控性 2.对接的方便性 3.可行性评估,提早暴露风险         
             
-            CServerSocket* pserver = CServerSocket::getInstance();
-            if (pserver->InitSocket() == false)
+            CCommand cmd;//命令处理模块
+            int ret = CServerSocket::getInstance()->Run(&CCommand::RunCommand, &cmd);//网络处理模块
+            switch (ret)
+            {
+            case -1:
             {
                 MessageBox(nullptr, _T("网络初始化异常, 请检查网络状态!"), _T("网络初始化失败!"), MB_OK | MB_ICONERROR);
                 exit(0);
+                break;
             }
-
-            CCommand cmd;
-            int count = 0;
-            while (CServerSocket::getInstance() != nullptr)
+            case -2:
             {
-                if (pserver->AcceptClient() == false)
-                {
-                    if (count >= 3)
-                    {
-                        MessageBox(nullptr, _T("多次无法正常接入用户, 程序结束!"), _T("接入用户失败!"), MB_OK | MB_ICONERROR);
-                        exit(0);
-                    }
-                    MessageBox(nullptr, _T("无法正常接入用户, 自动重试..."), _T("接入用户失败"), MB_OK | MB_ICONERROR);
-                    count++;
-                }
-                int ret = pserver->DealCommand();
-                // ToDO: 处理命令
-                if (ret > 0)
-                {
-                    //ExcuteCommand(ret); 这样不也可以吗? 为何还要定义GetPacket()来获得sCmd？
-                    ret = cmd.ExcuteCommand(pserver->GetPacket().sCmd);
-                    if (ret != 0)
-                        TRACE("执行命令失败: %d ret = %d\r\n", pserver->GetPacket().sCmd, ret);
-                    pserver->CloseClient();
-                }                
+                MessageBox(nullptr, _T("多次无法正常接入用户, 程序结束!"), _T("接入用户失败!"), MB_OK | MB_ICONERROR);
+                exit(0);
+                break;
+            }
             }
         }
     }
