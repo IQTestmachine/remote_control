@@ -84,9 +84,10 @@ int CRemoteClientDlg::SendCommandPacket(int nCmd, bool bAutoClose, BYTE* pData, 
 		return -1;
 	}
 	CPacket pack(nCmd, pData, nLength);
+	TRACE("nCmd = %d\r\n", nCmd);
 	pClient->Send(pack);
 	int cmd = pClient->DealCommand();
-	//TRACE("ack: %d\r\n", pClient->GetPacket().sCmd);
+	TRACE("ack: %d\r\n", pClient->GetPacket().sCmd);
 	if (bAutoClose)//注意, 由于该条件导致该函数执行完毕前客户端套接字不一定关闭, 因此如果不采用默认参数应编写额外代码主动关闭客户端套接字
 		pClient->CloseSocket();
 	return cmd;
@@ -549,6 +550,7 @@ LRESULT CRemoteClientDlg::OnSendPacket(WPARAM wParam, LPARAM lParam)//第四步:
 {
 	int ret = 0;
 	int cmd = wParam >> 1;
+	TRACE("命令号cmd = %d\r\n", cmd);
 	switch (cmd)
 	{
 	case 4:

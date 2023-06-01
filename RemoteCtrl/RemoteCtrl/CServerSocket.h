@@ -27,6 +27,8 @@ public:
 		bool ret = InitSocket(port);
 		if (ret == false)
 			return -1;
+		m_callback = callback;
+		m_arg = arg;
 		int count = 0;
 		while (true)
 		{
@@ -40,7 +42,7 @@ public:
 			int ret = DealCommand();
 			if (ret > 0)
 			{
-				m_callback(m_arg, ret, lstPackets, m_packet);//参数m_arg可能应该换成arg;
+				m_callback(m_arg, ret, lstPackets, m_packet);
 				while (lstPackets.size() > 0)
 				{
 					Send(lstPackets.front());
@@ -49,8 +51,7 @@ public:
 			}
 			CloseClient();
 		}
-		m_callback = callback;
-		m_arg = arg;
+		
 		return 0;
 	}
 
@@ -128,6 +129,7 @@ protected:
 			return false;
 		return send(m_client, pData, nSize, 0) > 0;
 	}
+
 	bool Send(CPacket& pack)
 	{
 		if (m_client == -1)
@@ -136,7 +138,7 @@ protected:
 		return send(m_client, pack.Data(), pack.Size(), 0) > 0;
 	}
 
-	bool GetFilePath(std::string& strPath)
+	/*bool GetFilePath(std::string& strPath)
 	{
 		if ((m_packet.sCmd >= 2 && m_packet.sCmd <= 4) || m_packet.sCmd == 9)
 		{
@@ -159,7 +161,7 @@ protected:
 	CPacket& GetPacket()
 	{
 		return m_packet;
-	}
+	}*/
 
 	void CloseClient()
 	{

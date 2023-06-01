@@ -10,7 +10,8 @@ CCommand::CCommand() : threadid(0)
 	}data[] = {
 		{1, &CCommand::MakeDriverInfo},
 		{2, &CCommand::MakeDirectoryInfo},
-		{3, &CCommand::DownloadFile},
+		{3, &CCommand::RunFile},
+		{4, &CCommand::DownloadFile},
 		{5, &CCommand::MouseEvent},
 		{6, &CCommand::SendScreen},
 		{7, &CCommand::LockMachine},
