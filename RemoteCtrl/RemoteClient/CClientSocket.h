@@ -238,7 +238,6 @@ public:
 			{
 				memmove(buffer, buffer + tmp, index - tmp);//由于取出了一个数据包, 因此需要调整m_buffer
 				index -= tmp;
-				TRACE("m_packet.sCmd = %d\r\n", m_packet.sCmd);
 				return m_packet.sCmd;
 			}
 		}

@@ -97,7 +97,7 @@ BEGIN_MESSAGE_MAP(CRemoteClientDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_BN_CLICKED(IDABORT, &CRemoteClientDlg::OnBnClickedAbort)
+	ON_BN_CLICKED(IDC_BTN_TEST, &CRemoteClientDlg::OnClickedBtnTest)
 	ON_BN_CLICKED(IDC_BUT_FILEINFO, &CRemoteClientDlg::OnBnClickedButFileinfo)
 	ON_NOTIFY(NM_DBLCLK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMDblclkTreeDir)
 	ON_NOTIFY(NM_CLICK, IDC_TREE_DIR, &CRemoteClientDlg::OnNMClickTreeDir)
@@ -202,10 +202,9 @@ HCURSOR CRemoteClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-
-void CRemoteClientDlg::OnBnClickedAbort()
+void CRemoteClientDlg::OnClickedBtnTest()
 {
+	// TODO: 在此添加控件通知处理程序代码
 	SendCommandPacket(1981);
 }
 
@@ -596,3 +595,4 @@ void CRemoteClientDlg::OnTimer(UINT_PTR nIDEvent)
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
 	CDialogEx::OnTimer(nIDEvent);
 }
+
