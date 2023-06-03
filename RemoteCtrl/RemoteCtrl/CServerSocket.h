@@ -3,7 +3,7 @@
 #include "framework.h"
 #include "Packet.h"
 #include "list"
-void Dump(BYTE* pData, size_t nSize);
+//void Dump(BYTE* pData, size_t nSize);
 
 typedef void (*SOCKET_CALLBACK)(void*, int, std::list<CPacket>&, CPacket& inPacket);
 

@@ -8,7 +8,7 @@
 #define IDD_REMOTECLIENT_DIALOG         102
 #define IDR_MAINFRAME                   128
 #define IDR_MENU_RCLICK                 130
-#define IDD_DIG_STATUS                  133
+#define IDD_DIG_STATUS                  133 //这里控件的ID写错了: IDD_DLG_STATUS 而且多了一些已经删除的控件
 #define IDD_DIALOG_WATCH                135
 #define IDC_EDIT_PORT                   1001
 #define IDC_IPADDRESS_SERV              1002
