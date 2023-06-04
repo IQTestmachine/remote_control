@@ -31,10 +31,10 @@ public:
 		CClientSocket::getInstance()->UpdateAddress(nIP, nPort);
 	}
 
-	int DealCommand()
+	/*int DealCommand()
 	{
 		return CClientSocket::getInstance()->DealCommand();
-	}
+	}*/
 
 	void CloseSocket()
 	{
@@ -73,6 +73,7 @@ public:
 			plstPacks = &lstPacks;
 		HANDLE hEvent = CreateEvent(nullptr, true, false, nullptr);
 		pClient->SendPacket(CPacket(nCmd, pData, nLength, hEvent), *plstPacks);
+		CloseHandle(hEvent);//回收事件句柄, 防止资源耗尽
 		if (plstPacks->size() > 0)
 			return plstPacks->front().sCmd;
 		return -1;
@@ -120,8 +121,8 @@ protected:
 		}
 	}
 
-	LRESULT OnSendPack(UINT nMsg, WPARAM wParam, LPARAM lParam);
-	LRESULT OnSendData(UINT nMsg, WPARAM wParam, LPARAM lParam);
+	/*LRESULT OnSendPack(UINT nMsg, WPARAM wParam, LPARAM lParam);
+	LRESULT OnSendData(UINT nMsg, WPARAM wParam, LPARAM lParam);*/
 	LRESULT OnShowStatus(UINT nMsg, WPARAM wParam, LPARAM lParam);
 	LRESULT OnShoWatcher(UINT nMsg, WPARAM wParam, LPARAM lParam);
 private:

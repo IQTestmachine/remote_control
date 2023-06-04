@@ -411,7 +411,7 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
 	}
 
-	CCommandCtrl::getInstance()->CloseSocket();
+	//CCommandCtrl::getInstance()->CloseSocket();
 	//TRACE("counts = %d\r\n", counts);
 }
 

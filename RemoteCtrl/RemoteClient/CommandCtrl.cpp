@@ -34,6 +34,7 @@ int CCommandCtrl::InitController()
 {
 	m_hTread = (HANDLE)_beginthreadex(nullptr, 0, &CCommandCtrl::threadEntry, this, 0, &m_nThreadID);//创建线程
 	m_statusDlg.Create(IDD_DIG_STATUS, &m_remoteDlg);//由于控件ID写错: IDD_DLG_STATUS
+
 	return 0;
 }
 
@@ -50,8 +51,8 @@ LRESULT CCommandCtrl::SendMessage(MSG msg)
 		return -2;
 	MSGINFO info(msg);
 	PostThreadMessage(m_nThreadID, WM_SEND_MESSAGE, (LPARAM)&info, (WPARAM)&hEvent);
-
-	WaitForSingleObject(hEvent, -1);
+	WaitForSingleObject(hEvent, INFINITE);
+	CloseHandle(hEvent);
 	LRESULT ret = info.result;
 	return ret;
 }
@@ -81,10 +82,10 @@ int CCommandCtrl::DownFile(CString strPath)
 
 int CCommandCtrl::StartWatchScreen()
 {
-	m_remoteDlg.SetWatchStatus(false);
+	m_watchDlg.m_isClosed = false;
 	m_hThreadWatch = (HANDLE)_beginthread(&CCommandCtrl::threadEntryForWatchData, 0, this);
 	m_watchDlg.DoModal();
-	m_remoteDlg.SetWatchStatus(true);
+	m_watchDlg.m_isClosed = true;
 	WaitForSingleObject(m_hThreadWatch, 500);
 	return 0;
 }
@@ -99,17 +100,23 @@ void CCommandCtrl::threadEntryForWatchData(void* arg)
 void CCommandCtrl::threadWatchData()
 {
 	Sleep(50);
-	while (!m_remoteDlg.isClosed())
+	while (/*!m_remoteDlg.isClosed()*/!m_watchDlg.m_isClosed)
 	{
-		if (m_watchDlg.isFull() == false)//将截图数据存入到缓存
+		if (m_watchDlg.m_isFull == false)//将截图数据存入到缓存
 		{
 			std::list<CPacket> lstPacks;
 			int ret = SendCommandPacket(6, true, nullptr, 0, &lstPacks);
 			if (ret == 6)
 			{
 				//CIQtestmachineTool::Bytes2Image(m_remoteDlg.GetImage(), lstPacks.front().strData);
-				if (GetImage(m_remoteDlg.GetImage()) == 0)
-					m_watchDlg.SetImageStatus(true);
+				//if (GetImage(m_watchDlg.m_image/*GetImage()*/) == 0)
+				if (CIQtestmachineTool::Bytes2Image(m_watchDlg.m_image, lstPacks.front().strData) == S_OK)
+				{
+					TRACE("加载图片成功!\r\n");
+					m_watchDlg.m_isFull = true;
+				}
+					
+					//m_watchDlg.SetImageStatus(true);
 				else
 					TRACE("获取图片失败!\r\n");
 			}

@@ -255,10 +255,9 @@ public:
 	{
 		if (m_client == INVALID_SOCKET)
 		{
-			if (InitSocket() == false)
-				return false;
 			_beginthread(&CClientSocket::threadEntry, 0, this);
 		}
+		auto pr = m_mapAck.insert(std::pair<HANDLE, std::list<CPacket>>(pack.hEvent, std::list<CPacket>()));
 		m_lstSend.push_back(pack);
 		WaitForSingleObject(pack.hEvent, INFINITE);
 		std::map<HANDLE, std::list<CPacket>>::iterator it;

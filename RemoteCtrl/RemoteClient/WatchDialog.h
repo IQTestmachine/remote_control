@@ -19,17 +19,22 @@ public:
 public:
 	int m_nObjWidth;
 	int m_nObjHeight;
-private:
+	CImage m_image;//缓存(采用一张图片来用作缓存区域)
 	bool m_isFull;//缓存是否有数据
-public:
-	bool isFull() const
-	{
-		return m_isFull;
-	}
-	void SetImageStatus(bool isFull = false)
-	{
-		m_isFull = isFull;
-	}
+	bool m_isClosed;//监视是否关闭
+//public:
+//	CImage& GetImage()
+//	{
+//		return m_image;
+//	}
+//	bool isFull()
+//	{
+//		return m_isFull;
+//	}
+//	void SetImageStatus(bool isFull = false)
+//	{
+//		m_isFull = isFull;
+//	}
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 

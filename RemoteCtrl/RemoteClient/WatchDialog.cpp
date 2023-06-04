@@ -77,25 +77,21 @@ void CWatchDialog::OnTimer(UINT_PTR nIDEvent)
 	if (nIDEvent == 0)
 	{
 		CCommandCtrl* pParent = CCommandCtrl::getInstance();
-		if (isFull())
+		if (m_isFull)
 		{
 			//pParent->GetImage().BitBlt(m_picture.GetDC()->GetSafeHdc(), 0, 0, SRCCOPY);
 			CRect rect;
 			m_picture.GetWindowRect(rect);
-			CImage image;
-			pParent->GetImage(image);
-			image.StretchBlt(
+			m_image.StretchBlt(
 				m_picture.GetDC()->GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), SRCCOPY);
 			m_picture.InvalidateRect(nullptr);
 			//!注意获取服务端发送来的截图宽和高应在显示之后获取, 否则会崩溃, 崩溃的原因可能是
 			//调用pParent->GetImage().GetWidth()之后导致m_image发生了一些未知改变
-			if (m_nObjWidth == -1)
-				m_nObjWidth =image.GetWidth();
-			if (m_nObjHeight == -1)
-				m_nObjHeight = image.GetHeight();
-			//TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
-			image.Destroy(); //在m_image。Load()使用了m_Destroy(), 这里似乎不用再调用
-			SetImageStatus(false);
+			m_nObjWidth = m_image.GetWidth();
+			m_nObjHeight = m_image.GetHeight();
+			TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
+			m_image.Destroy(); //在m_image.Load()之前使用了m_Destroy(), 这里似乎不用再调用
+			m_isFull = false;
 		}
 	}
 	CDialogEx::OnTimer(nIDEvent);

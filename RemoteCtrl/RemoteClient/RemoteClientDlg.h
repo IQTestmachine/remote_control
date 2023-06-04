@@ -23,22 +23,15 @@ public:
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
-public:
-	bool isClosed() const
-	{
-		return m_isClosed;
-	}
-	CImage& GetImage()
-	{
-		return m_image;
-	}
-	void SetWatchStatus(bool isClosed = false)
-	{
-		m_isClosed = isClosed;
-	}
-private:
-	CImage m_image;//缓存(采用一张图片来用作缓存区域)
-	bool m_isClosed;//监视是否关闭
+//public:
+//	bool isClosed()
+//	{
+//		return m_isClosed;
+//	}
+//	void SetWatchStatus(bool isClosed = false)
+//	{
+//		m_isClosed = isClosed;
+//	}
 private:
 	//static void threadEntryForWatchData(void* arg);//静态函数不能使用this指针, 因此声明如下函数辅助
 	//void threadWatchData();
