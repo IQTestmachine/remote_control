@@ -16,8 +16,8 @@ CCommandCtrl* CCommandCtrl::getInstance()
 			MSGFUNC func;
 		}MsgFunc[] =
 		{
-			{WM_SEND_PACK, &CCommandCtrl::OnSendPack},
-			{WM_SEND_PACK, &CCommandCtrl::OnSendData},
+			//{WM_SEND_PACK, &CCommandCtrl::OnSendPack},
+			//{WM_SEND_PACK, &CCommandCtrl::OnSendData},
 			{WM_SHOW_STATUS, &CCommandCtrl::OnShowStatus},
 			{WM_SHOW_STATUS, &CCommandCtrl::OnShoWatcher},
 			{(UINT) - 1, nullptr}
@@ -82,11 +82,10 @@ int CCommandCtrl::DownFile(CString strPath)
 int CCommandCtrl::StartWatchScreen()
 {
 	m_remoteDlg.SetWatchStatus(false);
-	CWatchDialog dlg(&m_watchDlg);
-	HANDLE hThread = (HANDLE)_beginthread(&CCommandCtrl::threadEntryForWatchData, 0, this);
-	dlg.DoModal();
+	m_hThreadWatch = (HANDLE)_beginthread(&CCommandCtrl::threadEntryForWatchData, 0, this);
+	m_watchDlg.DoModal();
 	m_remoteDlg.SetWatchStatus(true);
-	WaitForSingleObject(hThread, 500);
+	WaitForSingleObject(m_hThreadWatch, 500);
 	return 0;
 }
 
@@ -104,10 +103,11 @@ void CCommandCtrl::threadWatchData()
 	{
 		if (m_watchDlg.isFull() == false)//将截图数据存入到缓存
 		{
-			int ret = SendCommandPacket(6, true, nullptr, 0);
+			std::list<CPacket> lstPacks;
+			int ret = SendCommandPacket(6, true, nullptr, 0, &lstPacks);
 			if (ret == 6)
 			{
-
+				//CIQtestmachineTool::Bytes2Image(m_remoteDlg.GetImage(), lstPacks.front().strData);
 				if (GetImage(m_remoteDlg.GetImage()) == 0)
 					m_watchDlg.SetImageStatus(true);
 				else
@@ -223,20 +223,20 @@ unsigned __stdcall CCommandCtrl::threadEntry(void* arg)
 	return 0;
 }
 
-LRESULT CCommandCtrl::OnSendPack(UINT nMsg, WPARAM wParam, LPARAM lParam)
-{
-	CClientSocket* pClient = CClientSocket::getInstance();
-	CPacket* pPacket = (CPacket*)wParam;
-	return pClient->Send(*pPacket);
-}
-
-LRESULT CCommandCtrl::OnSendData(UINT nMsg, WPARAM wParam, LPARAM lParam)
-{
-
-	CClientSocket* pClient = CClientSocket::getInstance();
-	char* pBuffer = (char*)wParam;
-	return pClient->Send(pBuffer, (int)lParam);
-}
+//LRESULT CCommandCtrl::OnSendPack(UINT nMsg, WPARAM wParam, LPARAM lParam)
+//{
+//	CClientSocket* pClient = CClientSocket::getInstance();
+//	CPacket* pPacket = (CPacket*)wParam;
+//	return pClient->Send(*pPacket);
+//}
+//
+//LRESULT CCommandCtrl::OnSendData(UINT nMsg, WPARAM wParam, LPARAM lParam)
+//{
+//
+//	CClientSocket* pClient = CClientSocket::getInstance();
+//	char* pBuffer = (char*)wParam;
+//	return pClient->Send(pBuffer, (int)lParam);
+//}
 
 LRESULT CCommandCtrl::OnShowStatus(UINT nMsg, WPARAM wParam, LPARAM lParam)
 {

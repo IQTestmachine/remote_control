@@ -8,8 +8,8 @@
 #include "CClientSocket.h"
 #include "IQtestmachineTool.h"
 
-#define WM_SEND_PACK (WM_USER + 1) //发送包数据
-#define WM_SEND_PACK (WM_USER + 2) //发送数据
+//#define WM_SEND_PACK (WM_USER + 1) //发送包数据
+//#define WM_SEND_PACK (WM_USER + 2) //发送数据
 #define WM_SHOW_STATUS (WM_USER + 3) //展示状态
 #define WM_SHOW_STATUS (WM_USER + 3) //远程监控
 #define WM_SEND_MESSAGE (WM_USER + 0x10000)//自定义消息处理
@@ -41,14 +41,14 @@ public:
 		CClientSocket::getInstance()->CloseSocket();
 	}
 
-	bool SendPacket(const CPacket& pack)
+	/*bool SendPacket(const CPacket& pack)
 	{
 		CClientSocket* pClient = CClientSocket::getInstance();
 		if (pClient->InitSocket() == false)
 			return false;
-		pClient->Send(pack);
+		pClient->SendPacket(pack, );
 		return true;
-	}
+	}*/
 
 	//1.查看磁盘分区
 	//2.查看指定目录下的文件
@@ -59,18 +59,23 @@ public:
 	//7.锁机
 	//8.解锁
 	//9.删除文件
-	//1981. 测试连接
-	//还是和之前版本一样, 个人认为该函数的设计存在缺陷, 至少函数名称不恰当, 因为调用了DealCommand() 
-	int SendCommandPacket(int nCmd, bool bAutoClose = true, BYTE* pData = nullptr, size_t nLength = 0)
+	//1981. 测试连接 
+	int SendCommandPacket(int nCmd, bool bAutoClose = true, BYTE* pData = nullptr, size_t nLength = 0, std::list<CPacket>* plstPacks = nullptr)
 	{
 		CClientSocket* pClient = CClientSocket::getInstance();
-		if (pClient->InitSocket() == false)
-			return false;
-		pClient->Send(CPacket(nCmd, pData, nLength));
-		int cmd = DealCommand();
-		if (bAutoClose)//注意, 由于该条件导致该函数执行完毕前客户端套接字不一定关闭, 因此如果不采用默认参数应编写额外代码主动关闭客户端套接字
-			CloseSocket();
-		return cmd;
+		/*if (pClient->InitSocket() == false)
+			return false;*/
+
+
+		/////////////
+		std::list<CPacket> lstPacks;
+		if (plstPacks == nullptr)
+			plstPacks = &lstPacks;
+		HANDLE hEvent = CreateEvent(nullptr, true, false, nullptr);
+		pClient->SendPacket(CPacket(nCmd, pData, nLength, hEvent), *plstPacks);
+		if (plstPacks->size() > 0)
+			return plstPacks->front().sCmd;
+		return -1;
 	}
 
 	int GetImage(CImage& image)

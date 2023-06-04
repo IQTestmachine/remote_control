@@ -3,6 +3,8 @@
 #include "framework.h"
 #include <string>
 #include <vector>
+#include <list>
+#include <map>
 #pragma warning(disable : 4996)
 
 #pragma pack(push)
@@ -11,7 +13,7 @@ class CPacket
 {
 public:
 	CPacket() : sHead(0), nLength(0), sCmd(0), sSum(0) { }
-	CPacket(WORD nCmd, const BYTE* pData, size_t nSize)//控制端把要发送的信息打包成一个数据包
+	CPacket(WORD nCmd, const BYTE* pData, size_t nSize, HANDLE nEvent)//控制端把要发送的信息打包成一个数据包
 	{
 		sHead = 0xFEFE;
 		nLength = nSize + 4;
@@ -30,6 +32,7 @@ public:
 		{
 			sSum += BYTE(strData[j]) & 0xFF;
 		}
+		hEvent = nEvent;
 	}
 	CPacket(const CPacket& pack)
 	{
@@ -38,8 +41,9 @@ public:
 		sCmd = pack.sCmd;
 		strData = pack.strData;
 		sSum = pack.sSum;
+		hEvent = pack.hEvent;
 	}
-	CPacket(const BYTE* pData, size_t& nSize)//从服务端读取来的数据流中打包出一个数据包
+	CPacket(const BYTE* pData, size_t& nSize) : hEvent(INVALID_HANDLE_VALUE)//从服务端读取来的数据流中打包出一个数据包
 	{
 		size_t i = 0;
 		for (; i < nSize; i++)
@@ -98,6 +102,7 @@ public:
 		sCmd = pack.sCmd;
 		strData = pack.strData;
 		sSum = pack.sSum;
+		hEvent = pack.hEvent;
 		return *this;
 	}
 
@@ -128,6 +133,7 @@ public:
 	WORD sCmd;//控制命令
 	std::string strData;//包数据
 	WORD sSum;//和校验
+	HANDLE hEvent;
 };
 #pragma pack(pop)
 
@@ -245,19 +251,29 @@ public:
 		return -1;
 	}
 
-	bool Send(const char* pData, int nSize)
+	bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks)
 	{
-		if (m_client == -1)
-			return false;
-		return send(m_client, pData, nSize, 0) > 0;
-	}
-	bool Send(const CPacket& pack)
-	{
-		if (m_client == -1)
-			return false;
-		std::string strOut;
-		pack.Data(strOut);
-		return send(m_client, strOut.c_str(), strOut.size(), 0) > 0;
+		if (m_client == INVALID_SOCKET)
+		{
+			if (InitSocket() == false)
+				return false;
+			_beginthread(&CClientSocket::threadEntry, 0, this);
+		}
+		m_lstSend.push_back(pack);
+		WaitForSingleObject(pack.hEvent, INFINITE);
+		std::map<HANDLE, std::list<CPacket>>::iterator it;
+		it = m_mapAck.find(pack.hEvent);
+		if (it != m_mapAck.end())
+		{
+			std::list<CPacket>::iterator i;
+			for (i = it->second.begin(); i != it->second.end(); i++)
+			{
+				lstPacks.push_back(*i);
+			}
+			m_mapAck.erase(it);
+			return true;
+		}
+		return false;
 	}
 
 	bool GetFilePath(std::string& strPath)
@@ -290,19 +306,24 @@ public:
 		m_client = INVALID_SOCKET;
 	}
 
-	void UpdateAddress(int nIp, int nPort)
+	void UpdateAddress(int nIP, int nPort)
 	{
-		m_nIP = nIp;
-		m_nPort = nPort;
+		if (m_nIP != nIP || m_nPort != nPort)
+		{
+			m_nIP = nIP;
+			m_nPort = nPort;
+		} 
 	}
 
 private:
+	std::list<CPacket> m_lstSend;
+	std::map<HANDLE, std::list<CPacket>> m_mapAck;
 	int m_nIP;
 	int m_nPort;
 	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
-	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0)
+	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET)
 	{
 		if (InitSockEnv() == false)
 		{
@@ -323,8 +344,12 @@ private:
 	~CClientSocket()
 	{
 		closesocket(m_client);
+		m_client = INVALID_SOCKET;
 		WSACleanup();
 	}
+
+	static void threadEntry(void* arg);
+	void threadFunc();
 
 	bool InitSockEnv()
 	{
@@ -334,6 +359,21 @@ private:
 			return false;
 		}
 		return true;
+	}
+
+	bool Send(const char* pData, int nSize)
+	{
+		if (m_client == -1)
+			return false;
+		return send(m_client, pData, nSize, 0) > 0;
+	}
+	bool Send(const CPacket& pack)
+	{
+		if (m_client == -1)
+			return false;
+		std::string strOut;
+		pack.Data(strOut);
+		return send(m_client, strOut.c_str(), strOut.size(), 0) > 0;
 	}
 
 	static CClientSocket* m_instance;
