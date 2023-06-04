@@ -5,6 +5,8 @@
 #include "StatusDlg.h"
 #include <map>
 #include "Resource.h"
+#include "CClientSocket.h"
+#include "IQtestmachineTool.h"
 
 #define WM_SEND_PACK (WM_USER + 1) //发送包数据
 #define WM_SEND_PACK (WM_USER + 2) //发送数据
@@ -23,11 +25,74 @@ public:
 	int Invoke(CWnd*& pMainWnd);
 	//发送消息
 	LRESULT SendMessage(MSG msg);
+	//更新网络服务器地址
+	void UpdateAddress(int nIP, int nPort)
+	{
+		CClientSocket::getInstance()->UpdateAddress(nIP, nPort);
+	}
+
+	int DealCommand()
+	{
+		return CClientSocket::getInstance()->DealCommand();
+	}
+
+	void CloseSocket()
+	{
+		CClientSocket::getInstance()->CloseSocket();
+	}
+
+	bool SendPacket(const CPacket& pack)
+	{
+		CClientSocket* pClient = CClientSocket::getInstance();
+		if (pClient->InitSocket() == false)
+			return false;
+		pClient->Send(pack);
+		return true;
+	}
+
+	//1.查看磁盘分区
+	//2.查看指定目录下的文件
+	//3.打开文件
+	//4.下载文件
+	//5.鼠标操作
+	//6.请求获得服务端屏幕截图
+	//7.锁机
+	//8.解锁
+	//9.删除文件
+	//1981. 测试连接
+	//还是和之前版本一样, 个人认为该函数的设计存在缺陷, 至少函数名称不恰当, 因为调用了DealCommand() 
+	int SendCommandPacket(int nCmd, bool bAutoClose = true, BYTE* pData = nullptr, size_t nLength = 0)
+	{
+		CClientSocket* pClient = CClientSocket::getInstance();
+		if (pClient->InitSocket() == false)
+			return false;
+		pClient->Send(CPacket(nCmd, pData, nLength));
+		int cmd = DealCommand();
+		if (bAutoClose)//注意, 由于该条件导致该函数执行完毕前客户端套接字不一定关闭, 因此如果不采用默认参数应编写额外代码主动关闭客户端套接字
+			CloseSocket();
+		return cmd;
+	}
+
+	int GetImage(CImage& image)
+	{
+		CClientSocket* pClient = CClientSocket::getInstance();
+		return CIQtestmachineTool::Bytes2Image(image, pClient->GetPacket().strData);
+	}
+
+	int DownFile(CString strPath);
+	int StartWatchScreen();
 protected:
+	static void threadEntryForWatchData(void* arg);//静态函数不能使用this指针, 因此声明如下函数辅助
+	void threadWatchData();
+	static void threadEntryForDownFile(void* arg);
+	void threadDownFile();
 	CCommandCtrl() : m_statusDlg(&m_remoteDlg), m_watchDlg(&m_remoteDlg)
 	{ 
 		m_hTread = INVALID_HANDLE_VALUE;
 		m_nThreadID = -1;
+		m_hThreadDownload = INVALID_HANDLE_VALUE;
+		m_hThreadWatch = INVALID_HANDLE_VALUE;
+
 	}
 
 	~CCommandCtrl()
@@ -87,6 +152,13 @@ private:
 	CRemoteClientDlg m_remoteDlg;
 	CStatusDlg m_statusDlg;
 	HANDLE m_hTread;
+	HANDLE m_hThreadDownload;
+	//下载文件的远程路径
+	CString m_strRemote;
+	//下载文件的本地路径
+	CString m_strLocal;
+	HANDLE m_hThreadWatch;
+	//bool m_isClosed;
 	unsigned m_nThreadID;
 	static CCommandCtrl* m_instance;
 public:
@@ -95,7 +167,7 @@ public:
 	public:
 		Helper()
 		{
-			CCommandCtrl::getInstance();
+			//CCommandCtrl::getInstance();
 		}
 		~Helper()
 		{

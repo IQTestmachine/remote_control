@@ -19,7 +19,17 @@ public:
 public:
 	int m_nObjWidth;
 	int m_nObjHeight;
-
+private:
+	bool m_isFull;//缓存是否有数据
+public:
+	bool isFull() const
+	{
+		return m_isFull;
+	}
+	void SetImageStatus(bool isFull = false)
+	{
+		m_isFull = isFull;
+	}
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 

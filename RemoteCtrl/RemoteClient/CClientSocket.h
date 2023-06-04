@@ -105,7 +105,7 @@ public:
 	{
 		return nLength + 6;
 	}
-	const char* Data()
+	const char* Data(std::string& strOut) const
 	{
 		strOut.resize(nLength + 6);
 		BYTE* pData = (BYTE*)strOut.c_str();
@@ -128,7 +128,6 @@ public:
 	WORD sCmd;//控制命令
 	std::string strData;//包数据
 	WORD sSum;//和校验
-	std::string strOut;// 整个数据包
 };
 #pragma pack(pop)
 
@@ -176,7 +175,7 @@ public:
 		return m_instance;
 	}
 
-	bool InitSocket(int nIP, int nPort)
+	bool InitSocket()
 	{
 		if (m_client != INVALID_SOCKET)
 			CloseSocket();
@@ -188,8 +187,8 @@ public:
 		sockaddr_in serv_adr;
 		memset(&serv_adr, 0, sizeof(serv_adr));
 		serv_adr.sin_family = AF_INET;
-		serv_adr.sin_addr.s_addr = htonl(nIP);//注意将本地字节序转换为网络字节序
-		serv_adr.sin_port = htons(nPort);
+		serv_adr.sin_addr.s_addr = htonl(m_nIP);//注意将本地字节序转换为网络字节序
+		serv_adr.sin_port = htons(m_nPort);
 		if (serv_adr.sin_addr.s_addr == INADDR_NONE)
 		{
 			AfxMessageBox("指定的IP地址不存在!");
@@ -252,11 +251,13 @@ public:
 			return false;
 		return send(m_client, pData, nSize, 0) > 0;
 	}
-	bool Send(CPacket& pack)
+	bool Send(const CPacket& pack)
 	{
 		if (m_client == -1)
 			return false;
-		return send(m_client, pack.Data(), pack.Size(), 0) > 0;
+		std::string strOut;
+		pack.Data(strOut);
+		return send(m_client, strOut.c_str(), strOut.size(), 0) > 0;
 	}
 
 	bool GetFilePath(std::string& strPath)
@@ -289,11 +290,19 @@ public:
 		m_client = INVALID_SOCKET;
 	}
 
+	void UpdateAddress(int nIp, int nPort)
+	{
+		m_nIP = nIp;
+		m_nPort = nPort;
+	}
+
 private:
+	int m_nIP;
+	int m_nPort;
 	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
-	CClientSocket()
+	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0)
 	{
 		if (InitSockEnv() == false)
 		{
@@ -303,11 +312,13 @@ private:
 		m_buffer.resize(BUFFER_SIZE);
 		memset(m_buffer.data(), 0, BUFFER_SIZE);
 	}
-	CClientSocket(const CClientSocket&) { }
-	CClientSocket& operator=(const CClientSocket& ss)
-	{
+	CClientSocket(const CClientSocket& ss)
+	{ 
 		m_client = ss.m_client;
+		m_nIP = ss.m_nIP;
+		m_nPort = ss.m_nPort;
 	}
+	CClientSocket& operator=(const CClientSocket& ss) { }
 
 	~CClientSocket()
 	{
