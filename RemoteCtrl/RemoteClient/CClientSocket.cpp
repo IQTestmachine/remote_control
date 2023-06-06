@@ -39,8 +39,10 @@ void CClientSocket::threadFunc()
 	{
 		if (m_lstSend.size() > 0)
 		{
-			TRACE("lstSend size: %d\r\n", m_lstSend.size());
+			//TRACE("lstSend size: %d\r\n", m_lstSend.size());
+			m_lock.lock();
 			CPacket& head = m_lstSend.front();
+			m_lock.unlock();
 			if (Send(head) == false)
 			{
 				TRACE("发送数据包失败\r\n");
@@ -50,7 +52,7 @@ void CClientSocket::threadFunc()
 			auto it = m_mapAck.find(head.hEvent);
 			auto it0 = m_mapAutoClosed.find(head.hEvent);
 
-			if (it != m_mapAck.end())
+			if (it != m_mapAck.end() && it0 != m_mapAutoClosed.end())
 			{
 				//if (it0->second == true)
 				//{
@@ -111,12 +113,16 @@ void CClientSocket::threadFunc()
 					else
 						break;
 				} while (it0->second == false);
-				SetEvent(it->first);
+				SetEvent(head.hEvent);
+				if (it0 != m_mapAutoClosed.end())
+					m_mapAutoClosed.erase(head.hEvent);
 			}
+			m_lock.lock();
 			m_lstSend.pop_front();
-			CloseSocket();
-			//InitSocket();
+			m_lock.unlock();
+			InitSocket();
 		}
+		Sleep(1);//如果不休眠1ms, 监控屏幕的功能会卡死
 	}
 	CloseSocket();
 }

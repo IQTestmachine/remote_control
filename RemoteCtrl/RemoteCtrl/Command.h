@@ -235,8 +235,8 @@ protected:
 		default:
 			break;
 		}
-		if (nFlags != 8)
-			SetCursorPos(mouse.ptXY.x, mouse.ptXY.y);
+		/*if (nFlags != 8)
+			SetCursorPos(mouse.ptXY.x, mouse.ptXY.y);*/
 		switch (mouse.nAction)
 		{
 		case 0://单击
@@ -298,6 +298,7 @@ protected:
 			break;
 		case 0x08://单纯的移动鼠标
 			mouse_event(MOUSEEVENTF_MOVE, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            SetCursorPos(mouse.ptXY.x, mouse.ptXY.y);
 			break;
 		}
 		CPacket pack(5, nullptr, 0);

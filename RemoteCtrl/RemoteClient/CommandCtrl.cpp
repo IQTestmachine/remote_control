@@ -112,7 +112,7 @@ void CCommandCtrl::threadWatchData()
 				//if (GetImage(m_watchDlg.m_image/*GetImage()*/) == 0)
 				if (CIQtestmachineTool::Bytes2Image(m_watchDlg.m_image, lstPacks.front().strData) == S_OK)
 				{
-					TRACE("加载图片成功!\r\n");
+					//TRACE("加载图片成功!\r\n");
 					m_watchDlg.m_isFull = true;
 				}
 				else

@@ -538,7 +538,6 @@ void CRemoteClientDlg::OnDeleteFile()//点击删除文件的事件处理程序(�
 	LoadFileCurrent();
 }
 
-
 void CRemoteClientDlg::OnOpenFile()//点击打开文件的事件处理程序(函数)
 {
 	HTREEITEM hSelected = m_Tree.GetSelectedItem();

@@ -5,6 +5,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <mutex>
 #pragma warning(disable : 4996)
 
 #pragma pack(push)
@@ -186,7 +187,7 @@ public:
 		if (m_client != INVALID_SOCKET)
 			CloseSocket();
 		m_client = socket(PF_INET, SOCK_STREAM, 0);
-		TRACE("%d\r\n", m_client);
+		//TRACE("%d\r\n", m_client);
 		// TODO: 校验, 套接字是否创建成功
 		if (m_client == -1)
 			return false;
@@ -210,7 +211,7 @@ public:
 		return true;
 	}
 
-#define BUFFER_SIZE 4096000
+#define BUFFER_SIZE 8192000
 	//客户端的DealCommand()与服务端的DealCommand()不同, 
 	//通常服务端的DealCommand只是获取客户端的操作命令, 服务端在关闭m_client套接字之前不会再调用该函数, 即服务端每次连接仅执行一条命令
 	//执行客户端的命令服务端可能发送大量数据包, 因此客户端需要多次调用DealCommand, 
@@ -253,13 +254,15 @@ public:
 
 	bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks, bool isAutoClosed = true)
 	{
-		if (m_client == INVALID_SOCKET)
+		if (m_client == INVALID_SOCKET && m_nThread == INVALID_HANDLE_VALUE)
 		{
-			_beginthread(&CClientSocket::threadEntry, 0, this);
+			m_nThread = (HANDLE)_beginthread(&CClientSocket::threadEntry, 0, this);
 		}
 		auto pr = m_mapAck.insert(std::pair<HANDLE, std::list<CPacket>&>(pack.hEvent, lstPacks));
 		m_mapAutoClosed.insert(std::pair<HANDLE, bool>(pack.hEvent, isAutoClosed));
+		m_lock.lock();
 		m_lstSend.push_back(pack);
+		m_lock.unlock();
 		WaitForSingleObject(pack.hEvent, INFINITE);
 		std::map<HANDLE, std::list<CPacket>&>::iterator it;
 		it = m_mapAck.find(pack.hEvent);
@@ -311,6 +314,8 @@ public:
 	}
 
 private:
+	std::mutex m_lock;
+	HANDLE m_nThread;
 	bool m_bAutoClosed;
 	std::list<CPacket> m_lstSend;
 	std::map<HANDLE, std::list<CPacket>&> m_mapAck;
@@ -320,7 +325,7 @@ private:
 	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
-	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET), m_bAutoClosed(true)
+	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_nThread(INVALID_HANDLE_VALUE)
 	{
 		if (InitSockEnv() == false)
 		{

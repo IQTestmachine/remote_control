@@ -51,13 +51,17 @@ END_MESSAGE_MAP()
 CPoint CWatchDialog::UserPointtoRemotePoint(CPoint& point, bool isScreen)
 {
 	CRect clientRect;
-	if (isScreen == true)
-		ScreenToClient(&point);//全局坐标到相对坐标
-	TRACE("客户端鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
+	//if (isScreen == true)
+	//	ScreenToClient(&point);//全局坐标到相对坐标
+	if (!isScreen)
+		ClientToScreen(&point);//转换为相对客户端屏幕坐上角的坐标(全局坐标), 初始坐标实际上是相对于监视对话框左上角的坐标
+	m_picture.ScreenToClient(&point);//全局坐标转换为相对于m_pictual控件的左上角坐标
+	//TRACE("客户端鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
 	m_picture.GetWindowRect(clientRect);
-	TRACE("客户端监视窗口的宽高: width = %d, height = %d\r\n", clientRect.Width(), clientRect.Height());
+	//TRACE("客户端监视窗口的宽高: width = %d, height = %d\r\n", clientRect.Width(), clientRect.Height());
 	//转换到服务端屏幕坐标
-	return CPoint(point.x * m_nObjWidth / clientRect.Width(), (point.y - 76) * m_nObjHeight / clientRect.Height());//!注意减去76
+	return CPoint(point.x * m_nObjWidth / clientRect.Width(), (point.y) * m_nObjHeight / clientRect.Height());
+	//return CPoint(point.x * m_nObjWidth / clientRect.Width(), (point.y - 76) * m_nObjHeight / clientRect.Height());//!注意减去76
 }
 
 BOOL CWatchDialog::OnInitDialog()
@@ -88,7 +92,7 @@ void CWatchDialog::OnTimer(UINT_PTR nIDEvent)
 			//调用pParent->GetImage().GetWidth()之后导致m_image发生了一些未知改变
 			m_nObjWidth = m_image.GetWidth();
 			m_nObjHeight = m_image.GetHeight();
-			TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
+			//TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
 			m_image.Destroy(); //在m_image.Load()之前使用了m_Destroy(), 这里似乎不用再调用
 			m_isFull = false;
 		}
@@ -104,7 +108,7 @@ void CWatchDialog::OnLButtonUp(UINT nFlags, CPoint point)
 		TRACE("进入监控鼠标左键抬起函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
-		TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
+		//TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
 		//封装
 		MOUSEEV event;
 		event.ptXY = remote;
@@ -121,7 +125,7 @@ void CWatchDialog::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标左键双击函数\r\n");
+		//TRACE("进入监控鼠标左键双击函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -142,10 +146,10 @@ void CWatchDialog::OnLButtonDown(UINT nFlags, CPoint point)
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
 		TRACE("进入监控鼠标左键按下函数\r\n");
-		TRACE("最初获取的鼠标位置: x = %d, y = %d\r\n", point.x, point.y);
+		//TRACE("最初获取的鼠标位置: x = %d, y = %d\r\n", point.x, point.y);
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
-		TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
+		//TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
 		//封装
 		MOUSEEV event;
 		event.ptXY = remote;
@@ -163,7 +167,7 @@ void CWatchDialog::OnRButtonDblClk(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标右键双击函数\r\n");
+		//TRACE("进入监控鼠标右键双击函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -183,7 +187,7 @@ void CWatchDialog::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标右键按下函数\r\n");
+		//TRACE("进入监控鼠标右键按下函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -203,7 +207,7 @@ void CWatchDialog::OnRButtonUp(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标右键弹开函数\r\n");
+		//TRACE("进入监控鼠标右键弹开函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//封装
@@ -223,7 +227,7 @@ void CWatchDialog::OnMouseMove(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标移动函数\r\n");
+		//TRACE("进入监控鼠标移动函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//TRACE("转变为服务端的鼠标位置: point.x = %d, point.y = %d\r\n", point.x, point.y);
