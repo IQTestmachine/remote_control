@@ -204,14 +204,15 @@ void CRemoteClientDlg::OnClickedBtnTest()
 void CRemoteClientDlg::OnBnClickedButFileinfo()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	int ret = CCommandCtrl::getInstance()->SendCommandPacket(1);
-	if (ret == -1)
+	std::list<CPacket> lstPackets;
+	int ret = CCommandCtrl::getInstance()->SendCommandPacket(1, true, nullptr, 0, &lstPackets);
+	if (ret == -1 || lstPackets.size() <= 0)
 	{
 		AfxMessageBox(_T("命令处理失败"));
 		return;
 	}
-	CClientSocket* pClient = CClientSocket::getInstance();
-	std::string drivers = pClient->GetPacket().strData;
+	CPacket& head = lstPackets.front();
+	std::string drivers = head.strData;
 	TRACE("drivers = %s\r\n", drivers.c_str());
 	std::string dr;
 	m_Tree.DeleteAllItems();//因为被控制端的文件目录是一个树结构, 所以这里添加的变量m_Tree应该是一个树. 这里的函数目标是清空树, 防止因为多次点击导致树越来越大
@@ -377,39 +378,65 @@ void CRemoteClientDlg::LoadFileInfo()//展开指定目录下的文件夹(m_Tree)
 	int counts = 0;//文件夹与文件夹的总数量
 	CString strPath = GetPath(hTreeSelected);
 	//TRACE("%s\r\n", strPath);
-	int cmd = CCommandCtrl::getInstance()->SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength());
+	std::list<CPacket> lstPackets;
+	int cmd = CCommandCtrl::getInstance()->SendCommandPacket(2, false, (BYTE*)(LPCTSTR)strPath, strPath.GetLength(), &lstPackets);
 	TRACE("%d\r\n", cmd);
-
-	CClientSocket* pClient = CClientSocket::getInstance();
-	PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
-	while (pInfo->HasNext)
+	//PFILEINFO pInfo = (PFILEINFO)lstPackets.front().strData.c_str();
+	lstPackets.pop_back();
+	if (lstPackets.size() > 0)
 	{
-		//TRACE("szFilename = %s, IsDirectory = %d, HasNext = %d\r\n", pInfo->szFileName, pInfo->IsDirectory, pInfo->HasNext);
-		if (pInfo->IsDirectory)
+		for (auto it = lstPackets.begin(); it != lstPackets.end(); it++)
 		{
-			if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
+			PFILEINFO pInfo = (PFILEINFO)(*it).strData.c_str();
+			if (pInfo->IsDirectory)
 			{
-				int cmd = pClient->DealCommand();
-				//TRACE("ack: %d\r\n", cmd);
-				if (cmd < 0)
-					break;
-				pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
-				continue;				
+				if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
+				{
+					continue;
+				}
+				HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
+				m_Tree.InsertItem("", hTmp, TVI_LAST);//似乎没有必要追加空字符串
 			}
-			HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
-			m_Tree.InsertItem("", hTmp, TVI_LAST);//似乎没有必要追加空字符串
+			else
+			{
+				m_List.InsertItem(0, pInfo->szFileName);
+			}
 		}
-		else
-		{
-			m_List.InsertItem(0, pInfo->szFileName);
-		}
-		counts++;
-		int cmd = pClient->DealCommand();
-		//TRACE("ack: %d\r\n", cmd);
-		if (cmd < 0)
-			break;
-		pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+		/*lstPackets.pop_front();
+		pInfo = PFILEINFO(lstPackets.front().strData.c_str());*/
 	}
+
+
+	//CClientSocket* pClient = CClientSocket::getInstance();
+	//PFILEINFO pInfo = (PFILEINFO)pClient->GetPacket().strData.c_str();
+	//while (pInfo->HasNext)
+	//{
+	//	//TRACE("szFilename = %s, IsDirectory = %d, HasNext = %d\r\n", pInfo->szFileName, pInfo->IsDirectory, pInfo->HasNext);
+	//	if (pInfo->IsDirectory)
+	//	{
+	//		if (CString(pInfo->szFileName) == "." || CString(pInfo->szFileName) == "..")
+	//		{
+	//			int cmd = pClient->DealCommand();
+	//			//TRACE("ack: %d\r\n", cmd);
+	//			if (cmd < 0)
+	//				break;
+	//			pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+	//			continue;				
+	//		}
+	//		HTREEITEM hTmp = m_Tree.InsertItem(pInfo->szFileName, hTreeSelected, TVI_LAST);
+	//		m_Tree.InsertItem("", hTmp, TVI_LAST);//似乎没有必要追加空字符串
+	//	}
+	//	else
+	//	{
+	//		m_List.InsertItem(0, pInfo->szFileName);
+	//	}
+	//	counts++;
+	//	int cmd = pClient->DealCommand();
+	//	//TRACE("ack: %d\r\n", cmd);
+	//	if (cmd < 0)
+	//		break;
+	//	pInfo = PFILEINFO(CClientSocket::getInstance()->GetPacket().strData.c_str());
+	//}
 
 	//CCommandCtrl::getInstance()->CloseSocket();
 	//TRACE("counts = %d\r\n", counts);

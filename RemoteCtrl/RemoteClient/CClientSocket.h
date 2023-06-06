@@ -210,7 +210,7 @@ public:
 		return true;
 	}
 
-#define BUFFER_SIZE 2048000
+#define BUFFER_SIZE 4096000
 	//客户端的DealCommand()与服务端的DealCommand()不同, 
 	//通常服务端的DealCommand只是获取客户端的操作命令, 服务端在关闭m_client套接字之前不会再调用该函数, 即服务端每次连接仅执行一条命令
 	//执行客户端的命令服务端可能发送大量数据包, 因此客户端需要多次调用DealCommand, 
@@ -251,24 +251,20 @@ public:
 		return -1;
 	}
 
-	bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks)
+	bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks, bool isAutoClosed = true)
 	{
 		if (m_client == INVALID_SOCKET)
 		{
 			_beginthread(&CClientSocket::threadEntry, 0, this);
 		}
-		auto pr = m_mapAck.insert(std::pair<HANDLE, std::list<CPacket>>(pack.hEvent, std::list<CPacket>()));
+		auto pr = m_mapAck.insert(std::pair<HANDLE, std::list<CPacket>&>(pack.hEvent, lstPacks));
+		m_mapAutoClosed.insert(std::pair<HANDLE, bool>(pack.hEvent, isAutoClosed));
 		m_lstSend.push_back(pack);
 		WaitForSingleObject(pack.hEvent, INFINITE);
-		std::map<HANDLE, std::list<CPacket>>::iterator it;
+		std::map<HANDLE, std::list<CPacket>&>::iterator it;
 		it = m_mapAck.find(pack.hEvent);
 		if (it != m_mapAck.end())
 		{
-			std::list<CPacket>::iterator i;
-			for (i = it->second.begin(); i != it->second.end(); i++)
-			{
-				lstPacks.push_back(*i);
-			}
 			m_mapAck.erase(it);
 			return true;
 		}
@@ -315,14 +311,16 @@ public:
 	}
 
 private:
+	bool m_bAutoClosed;
 	std::list<CPacket> m_lstSend;
-	std::map<HANDLE, std::list<CPacket>> m_mapAck;
+	std::map<HANDLE, std::list<CPacket>&> m_mapAck;
+	std::map<HANDLE, bool> m_mapAutoClosed;
 	int m_nIP;
 	int m_nPort;
 	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
-	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET)
+	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET), m_bAutoClosed(true)
 	{
 		if (InitSockEnv() == false)
 		{
@@ -334,6 +332,7 @@ private:
 	}
 	CClientSocket(const CClientSocket& ss)
 	{ 
+		m_bAutoClosed = ss.m_bAutoClosed;
 		m_client = ss.m_client;
 		m_nIP = ss.m_nIP;
 		m_nPort = ss.m_nPort;

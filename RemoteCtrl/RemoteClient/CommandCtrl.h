@@ -72,7 +72,7 @@ public:
 		if (plstPacks == nullptr)
 			plstPacks = &lstPacks;
 		HANDLE hEvent = CreateEvent(nullptr, true, false, nullptr);
-		pClient->SendPacket(CPacket(nCmd, pData, nLength, hEvent), *plstPacks);
+		pClient->SendPacket(CPacket(nCmd, pData, nLength, hEvent), *plstPacks, bAutoClose);
 		CloseHandle(hEvent);//回收事件句柄, 防止资源耗尽
 		if (plstPacks->size() > 0)
 			return plstPacks->front().sCmd;

@@ -115,8 +115,6 @@ void CCommandCtrl::threadWatchData()
 					TRACE("加载图片成功!\r\n");
 					m_watchDlg.m_isFull = true;
 				}
-					
-					//m_watchDlg.SetImageStatus(true);
 				else
 					TRACE("获取图片失败!\r\n");
 			}
