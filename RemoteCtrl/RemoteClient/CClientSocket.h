@@ -8,13 +8,16 @@
 #include <mutex>
 #pragma warning(disable : 4996)
 
+#define WM_SEND_PACK (WM_USER + 1) //发送命令数据包
+#define WM_SEND_PACK_ACK (WM_USER + 100) //命令应答包
+
 #pragma pack(push)
 #pragma pack(1)
 class CPacket
 {
 public:
 	CPacket() : sHead(0), nLength(0), sCmd(0), sSum(0) { }
-	CPacket(WORD nCmd, const BYTE* pData, size_t nSize, HANDLE nEvent)//控制端把要发送的信息打包成一个数据包
+	CPacket(WORD nCmd, const BYTE* pData, size_t nSize)//控制端把要发送的信息打包成一个数据包
 	{
 		sHead = 0xFEFE;
 		nLength = nSize + 4;
@@ -33,7 +36,6 @@ public:
 		{
 			sSum += BYTE(strData[j]) & 0xFF;
 		}
-		hEvent = nEvent;
 	}
 	CPacket(const CPacket& pack)
 	{
@@ -42,9 +44,8 @@ public:
 		sCmd = pack.sCmd;
 		strData = pack.strData;
 		sSum = pack.sSum;
-		hEvent = pack.hEvent;
 	}
-	CPacket(const BYTE* pData, size_t& nSize) : hEvent(INVALID_HANDLE_VALUE)//从服务端读取来的数据流中打包出一个数据包
+	CPacket(const BYTE* pData, size_t& nSize)//从服务端读取来的数据流中打包出一个数据包
 	{
 		size_t i = 0;
 		for (; i < nSize; i++)
@@ -103,7 +104,6 @@ public:
 		sCmd = pack.sCmd;
 		strData = pack.strData;
 		sSum = pack.sSum;
-		hEvent = pack.hEvent;
 		return *this;
 	}
 
@@ -134,7 +134,6 @@ public:
 	WORD sCmd;//控制命令
 	std::string strData;//包数据
 	WORD sSum;//和校验
-	HANDLE hEvent;
 };
 #pragma pack(pop)
 
@@ -167,6 +166,37 @@ typedef struct file_info
 	char szFileName[256];//文件名
 }FILEINFO, * PFILEINFO;
 
+enum { CM_AUTOCLOSED = 1};//是否自动关闭
+
+typedef struct PackData
+{
+	std::string strData;
+	UINT nMode;
+	WPARAM wParam;
+	PackData(const char* pData, size_t nLen, UINT mode, WPARAM nwParam = 0)
+	{
+		strData.resize(nLen);
+		memcpy((char*)strData.c_str(), pData, nLen);
+		nMode = mode;
+		wParam = nwParam;
+ 	}
+	PackData(const PackData& data)
+	{
+		strData = data.strData;
+		nMode = data.nMode;
+		wParam = data.wParam;
+	}
+	PackData& operator=(const PackData& data)
+	{
+		if (this != &data)
+		{
+			strData = data.strData;
+			nMode = data.nMode;
+			wParam = data.wParam;
+		}
+		return *this;
+	}
+}PACKET_DATA;
 
 std::string GetErrorInfo(int wsaErrCode);
 
@@ -252,27 +282,8 @@ public:
 		return -1;
 	}
 
-	bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks, bool isAutoClosed = true)
-	{
-		if (m_client == INVALID_SOCKET && m_nThread == INVALID_HANDLE_VALUE)
-		{
-			m_nThread = (HANDLE)_beginthread(&CClientSocket::threadEntry, 0, this);
-		}
-		auto pr = m_mapAck.insert(std::pair<HANDLE, std::list<CPacket>&>(pack.hEvent, lstPacks));
-		m_mapAutoClosed.insert(std::pair<HANDLE, bool>(pack.hEvent, isAutoClosed));
-		m_lock.lock();
-		m_lstSend.push_back(pack);
-		m_lock.unlock();
-		WaitForSingleObject(pack.hEvent, INFINITE);
-		std::map<HANDLE, std::list<CPacket>&>::iterator it;
-		it = m_mapAck.find(pack.hEvent);
-		if (it != m_mapAck.end())
-		{
-			m_mapAck.erase(it);
-			return true;
-		}
-		return false;
-	}
+	bool CClientSocket::SendPacket(HWND hWnd, const CPacket& pack, bool isAutoClosed, WPARAM wParam = 0);
+	//bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks, bool isAutoClosed = true);
 
 	bool GetFilePath(std::string& strPath)
 	{
@@ -314,8 +325,11 @@ public:
 	}
 
 private:
+	UINT m_nThreadID;
+	typedef void(CClientSocket::* MSGFUNC)(UINT nMsg, WPARAM wParam, LPARAM lParam);
+	static std::map<UINT, MSGFUNC> m_mapFunc;//消息函数指针映射表
 	std::mutex m_lock;
-	HANDLE m_nThread;
+	HANDLE m_hThread;
 	bool m_bAutoClosed;
 	std::list<CPacket> m_lstSend;
 	std::map<HANDLE, std::list<CPacket>&> m_mapAck;
@@ -325,7 +339,7 @@ private:
 	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
-	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_nThread(INVALID_HANDLE_VALUE)
+	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_hThread(INVALID_HANDLE_VALUE)
 	{
 		if (InitSockEnv() == false)
 		{
@@ -334,9 +348,24 @@ private:
 		}
 		m_buffer.resize(BUFFER_SIZE);
 		memset(m_buffer.data(), 0, BUFFER_SIZE);
+		struct
+		{
+			UINT message;
+			MSGFUNC func;
+		}MsgFunc[] =
+		{
+			{WM_SEND_PACK, &CClientSocket::SendPack},
+			{0, nullptr}
+		};
+		for (int i = 0; MsgFunc[i].message != 0; i++)
+		{
+			if (m_mapFunc.insert(std::pair<UINT, MSGFUNC>(MsgFunc[i].message, MsgFunc[i].func)).second == false)
+				TRACE("插入失败, 消息值: %d, 函数指: %08X, 序号: %d\r\n", MsgFunc[i].message, MsgFunc[i].func, i);
+		}
 	}
 	CClientSocket(const CClientSocket& ss)
 	{ 
+		m_hThread = INVALID_HANDLE_VALUE;
 		m_bAutoClosed = ss.m_bAutoClosed;
 		m_client = ss.m_client;
 		m_nIP = ss.m_nIP;
@@ -351,8 +380,9 @@ private:
 		WSACleanup();
 	}
 
-	static void threadEntry(void* arg);
-	void threadFunc();
+
+	static unsigned __stdcall threadEntry(void* arg);
+	void threadFunc2();
 
 	bool InitSockEnv()
 	{
@@ -378,6 +408,8 @@ private:
 		pack.Data(strOut);
 		return send(m_client, strOut.c_str(), strOut.size(), 0) > 0;
 	}
+
+	void SendPack(UINT msg, WPARAM wParam, LPARAM lParam);
 
 	static CClientSocket* m_instance;
 

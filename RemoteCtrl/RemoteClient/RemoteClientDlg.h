@@ -7,7 +7,9 @@
 #include "StatusDlg.h"
 
 //#define WM_SEND_PACKET (WM_USER + 10)//第一步:发送数据包的消息
-
+#ifndef WM_SEND_PACK_ACK
+#define WM_SEND_PACK_ACK (WM_USER + 100)
+#endif
 
 // CRemoteClientDlg 对话框
 class CRemoteClientDlg : public CDialogEx
@@ -71,6 +73,7 @@ public:
 	afx_msg void OnDeleteFile();
 	afx_msg void OnOpenFile();
 	//afx_msg LRESULT OnSendPacket(WPARAM wParam, LPARAM lParam);//第二步:声明自定义消息函数
+	afx_msg LRESULT OnSendPacketAck(WPARAM wParam, LPARAM lParam);
 
 	afx_msg void OnBnClickedBtnStartWatch();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);

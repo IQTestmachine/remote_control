@@ -11,7 +11,7 @@
 //#define WM_SEND_PACK (WM_USER + 1) //发送包数据
 //#define WM_SEND_PACK (WM_USER + 2) //发送数据
 #define WM_SHOW_STATUS (WM_USER + 3) //展示状态
-#define WM_SHOW_STATUS (WM_USER + 3) //远程监控
+#define WM_SHOW_STATUS (WM_USER + 4) //远程监控
 #define WM_SEND_MESSAGE (WM_USER + 0x10000)//自定义消息处理
 
 class CCommandCtrl
@@ -60,24 +60,14 @@ public:
 	//8.解锁
 	//9.删除文件
 	//1981. 测试连接 
-	int SendCommandPacket(int nCmd, bool bAutoClose = true, BYTE* pData = nullptr, size_t nLength = 0, std::list<CPacket>* plstPacks = nullptr)
-	{
-		CClientSocket* pClient = CClientSocket::getInstance();
-		/*if (pClient->InitSocket() == false)
-			return false;*/
-
-
-		/////////////
-		std::list<CPacket> lstPacks;
-		if (plstPacks == nullptr)
-			plstPacks = &lstPacks;
-		HANDLE hEvent = CreateEvent(nullptr, true, false, nullptr);
-		pClient->SendPacket(CPacket(nCmd, pData, nLength, hEvent), *plstPacks, bAutoClose);
-		CloseHandle(hEvent);//回收事件句柄, 防止资源耗尽
-		if (plstPacks->size() > 0)
-			return plstPacks->front().sCmd;
-		return -1;
-	}
+	//返回true代表命令发送成功, false代表失败
+	bool SendCommandPacket(
+		HWND hWnd,//hWnd: 收到数据包后, 需要应答的窗口
+		int nCmd, 
+		bool bAutoClose = true, 
+		BYTE* pData = nullptr, 
+		size_t nLength = 0,
+		WPARAM wParam = 0);
 
 	int GetImage(CImage& image)
 	{
@@ -86,6 +76,7 @@ public:
 	}
 
 	int DownFile(CString strPath);
+	void DownFileEnd();
 	int StartWatchScreen();
 protected:
 	static void threadEntryForWatchData(void* arg);//静态函数不能使用this指针, 因此声明如下函数辅助
@@ -98,7 +89,6 @@ protected:
 		m_nThreadID = -1;
 		m_hThreadDownload = INVALID_HANDLE_VALUE;
 		m_hThreadWatch = INVALID_HANDLE_VALUE;
-
 	}
 
 	~CCommandCtrl()
