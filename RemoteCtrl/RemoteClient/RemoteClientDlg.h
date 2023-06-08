@@ -39,6 +39,7 @@ private:
 	//void threadWatchData();
 	//static void threadEntryForDownFile(void* arg);
 	//void threadDownFile();
+	void Str2Tree(const std::string& driver, CTreeCtrl& tree);
 	void LoadFileCurrent();
 	void LoadFileInfo();
 	CString GetPath(HTREEITEM hTree);

@@ -20,7 +20,7 @@ CCommandCtrl* CCommandCtrl::getInstance()
 			//{WM_SEND_PACK, &CCommandCtrl::OnSendData},
 			{WM_SHOW_STATUS, &CCommandCtrl::OnShowStatus},
 			{WM_SHOW_STATUS, &CCommandCtrl::OnShoWatcher},
-			{(UINT) - 1, nullptr}
+			{(UINT)1, nullptr}
 		};
 		for (int i = 0; MsgFunc[i].func != nullptr; i++)
 		{
@@ -60,8 +60,9 @@ LRESULT CCommandCtrl::SendMessage(MSG msg)
 bool CCommandCtrl::SendCommandPacket(HWND hWnd, int nCmd, bool bAutoClose, BYTE* pData, size_t nLength, WPARAM wParam)
 {
 	CClientSocket* pClient = CClientSocket::getInstance();
-	pClient->SendPacket(hWnd, CPacket(nCmd, pData, nLength), bAutoClose, wParam);
-	return 0;
+	CPacket pack(nCmd, pData, nLength);
+	bool ret = pClient->SendPacket(hWnd, pack, bAutoClose, wParam);
+	return ret;
 }
 
 int CCommandCtrl::DownFile(CString strPath)
@@ -121,12 +122,19 @@ void CCommandCtrl::threadEntryForWatchData(void* arg)
 
 void CCommandCtrl::threadWatchData()
 {
-	Sleep(50);
-	while (/*!m_remoteDlg.isClosed()*/!m_watchDlg.m_isClosed)
+	ULONGLONG nTick = GetTickCount64();
+	while (!m_watchDlg.m_isClosed)
 	{
-		if (m_watchDlg.m_isFull == false)//将截图数据存入到缓存
-		{
+		//if (m_watchDlg.m_isFull == false)//将截图数据存入到缓存
+		//{
+			if (GetTickCount64() - nTick < 50)
+			{
+				Sleep(50 - DWORD(GetTickCount64() - nTick));
+			}
+			nTick = GetTickCount64();
 			int ret = SendCommandPacket(m_watchDlg.GetSafeHwnd(), 6, true, nullptr, 0);
+			/*if (ret == 1)
+				TRACE("成功发送请求获取服务端截图命令包\r\n");*/
 			//TODO: 添加消息相应函数WM_SEND_PACK_ACK
 			//TODO: 控制发送频率
 			//if (ret == 6)
@@ -145,11 +153,8 @@ void CCommandCtrl::threadWatchData()
 			//{
 			//	Sleep(1);
 			//}
-		}
-		else
-		{
-			Sleep(1);
-		}
+		/*}
+		Sleep(1);*/
 	}
 }
 
@@ -212,44 +217,42 @@ void CCommandCtrl::threadWatchData()
 //	m_remoteDlg.MessageBox(_T("下载完成"));
 //}
 
-//void CCommandCtrl::threadFunc()
-//{
-//	MSG msg;
-//	while (::GetMessage(&msg, nullptr, 0, 0))
-//	{
-//		TranslateMessage(&msg);
-//		DispatchMessage(&msg);
-//		if (msg.message == WM_SEND_MESSAGE)
-//		{
-//			MSGINFO* pmsg = (MSGINFO*)msg.wParam;
-//			HANDLE hEvent = (HANDLE)msg.lParam;
-//			std::map<UINT, MSGFUNC>::iterator it = m_mapFunc.find(pmsg->msg.message);
-//			if (it != m_mapFunc.end())
-//				pmsg->result = (this->*(it->second))(pmsg->msg.message, pmsg->msg.wParam, pmsg->msg.lParam); 
-//			else
-//				pmsg->result = -1;
-//			SetEvent(hEvent);
-//		}
-//		else
-//		{
-//			std::map<UINT, MSGFUNC>::iterator it = m_mapFunc.find(msg.message);
-//			if (it != m_mapFunc.end())
-//			{
-//				(this->*(it->second))(msg.message, msg.wParam, msg.lParam);
-//			}
-//		}
-//		
-//
-//	}
-//}
-//
-//unsigned __stdcall CCommandCtrl::threadEntry(void* arg)
-//{
-//	CCommandCtrl* thiz = (CCommandCtrl*)arg;
-//	thiz->threadFunc();
-//	_endthreadex(0);
-//	return 0;
-//}
+void CCommandCtrl::threadFunc()
+{
+	MSG msg;
+	while (::GetMessage(&msg, nullptr, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+		if (msg.message == WM_SEND_MESSAGE)
+		{
+			MSGINFO* pmsg = (MSGINFO*)msg.wParam;
+			HANDLE hEvent = (HANDLE)msg.lParam;
+			std::map<UINT, MSGFUNC>::iterator it = m_mapFunc.find(pmsg->msg.message);
+			if (it != m_mapFunc.end())
+				pmsg->result = (this->*(it->second))(pmsg->msg.message, pmsg->msg.wParam, pmsg->msg.lParam); 
+			else
+				pmsg->result = -1;
+			SetEvent(hEvent);
+		}
+		else
+		{
+			std::map<UINT, MSGFUNC>::iterator it = m_mapFunc.find(msg.message);
+			if (it != m_mapFunc.end())
+			{
+				(this->*(it->second))(msg.message, msg.wParam, msg.lParam);
+			}
+		}
+	}
+}
+
+unsigned __stdcall CCommandCtrl::threadEntry(void* arg)
+{
+	CCommandCtrl* thiz = (CCommandCtrl*)arg;
+	thiz->threadFunc();
+	_endthreadex(0);
+	return 0;
+}
 
 //LRESULT CCommandCtrl::OnSendPack(UINT nMsg, WPARAM wParam, LPARAM lParam)
 //{

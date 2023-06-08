@@ -114,29 +114,25 @@ LRESULT CWatchDialog::OnSendPacketAck(WPARAM wParam, LPARAM lParam)
 	}
 	if (lParam == 0)
 	{
-		CPacket* pPacket = (CPacket*)wParam;
-		if (pPacket != nullptr)
+		if (wParam != NULL)
 		{
-			switch (pPacket->sCmd)
+			CPacket packAck = *(CPacket*)wParam;
+			delete (CPacket*)wParam;
+			switch (packAck.sCmd)
 			{
 			case 6:
 			{
-				if (m_isFull == true)
-				{
-					CIQtestmachineTool::Bytes2Image(m_image, pPacket->strData);
-					CRect rect;
-					m_picture.GetWindowRect(rect);
-					m_image.StretchBlt(
-						m_picture.GetDC()->GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), SRCCOPY);
-					m_picture.InvalidateRect(nullptr);
-					//!注意获取服务端发送来的截图宽和高应在显示之后获取, 否则会崩溃, 崩溃的原因可能是
-					//调用pParent->GetImage().GetWidth()之后导致m_image发生了一些未知改变
-					m_nObjWidth = m_image.GetWidth();
-					m_nObjHeight = m_image.GetHeight();
-					//TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
-					m_image.Destroy(); //在m_image.Load()之前使用了m_Destroy(), 这里似乎不用再调用
-					m_isFull = false;
-				}
+				CIQtestmachineTool::Bytes2Image(m_image, packAck.strData);
+				CRect rect;
+				m_picture.GetWindowRect(rect);
+				m_image.StretchBlt(
+					m_picture.GetDC()->GetSafeHdc(), 0, 0, rect.Width(), rect.Height(), SRCCOPY);
+				m_picture.InvalidateRect(nullptr);
+				m_nObjWidth = m_image.GetWidth();
+				m_nObjHeight = m_image.GetHeight();
+				//TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
+				m_image.Destroy();
+				TRACE("已显示截图\r\n");
 				break;
 			}
 			case 5:

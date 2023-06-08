@@ -217,7 +217,7 @@ public:
 		if (m_client != INVALID_SOCKET)
 			CloseSocket();
 		m_client = socket(PF_INET, SOCK_STREAM, 0);
-		//TRACE("%d\r\n", m_client);
+		TRACE("%d\r\n", m_client);
 		// TODO: 校验, 套接字是否创建成功
 		if (m_client == -1)
 			return false;
@@ -234,8 +234,9 @@ public:
 		int ret = connect(m_client, (sockaddr*)&serv_adr, sizeof(serv_adr));
 		if (ret == -1)
 		{
-			AfxMessageBox("连接失败");
 			TRACE("连接失败: %d %s\r\n", WSAGetLastError(), GetErrorInfo(WSAGetLastError()).c_str());
+			AfxMessageBox("连接失败");
+			
 			return false;
 		}
 		return true;
@@ -325,9 +326,10 @@ public:
 	}
 
 private:
+	HANDLE m_eventInvoke;
 	UINT m_nThreadID;
 	typedef void(CClientSocket::* MSGFUNC)(UINT nMsg, WPARAM wParam, LPARAM lParam);
-	static std::map<UINT, MSGFUNC> m_mapFunc;//消息函数指针映射表
+	std::map<UINT, MSGFUNC> m_mapFunc;//消息函数指针映射表
 	std::mutex m_lock;
 	HANDLE m_hThread;
 	bool m_bAutoClosed;
@@ -339,13 +341,18 @@ private:
 	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
 	CPacket m_packet;
-	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(0), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_hThread(INVALID_HANDLE_VALUE)
+	CClientSocket() : m_nIP(0x7f000001/*INADDR_ANY*/), m_nPort(9527), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_hThread(INVALID_HANDLE_VALUE)
 	{
 		if (InitSockEnv() == false)
 		{
 			MessageBox(nullptr, _T("无法初始化套接字环境, 请检查网络设置!"), _T("初始化错误"), MB_OK | MB_ICONERROR);
 			exit(0);
 		}
+		m_eventInvoke = CreateEvent(nullptr, true, false, nullptr);
+		m_hThread = (HANDLE)_beginthreadex(nullptr, 0, &CClientSocket::threadEntry, this, 0, &m_nThreadID);
+		if (WaitForSingleObject(m_eventInvoke, 100) == WAIT_TIMEOUT)
+			TRACE("网络消息处理线程启动失败!\r\n");
+		CloseHandle(m_eventInvoke);
 		m_buffer.resize(BUFFER_SIZE);
 		memset(m_buffer.data(), 0, BUFFER_SIZE);
 		struct
@@ -370,6 +377,7 @@ private:
 		m_client = ss.m_client;
 		m_nIP = ss.m_nIP;
 		m_nPort = ss.m_nPort;
+		m_eventInvoke = ss.m_eventInvoke;
 	}
 	CClientSocket& operator=(const CClientSocket& ss) { }
 

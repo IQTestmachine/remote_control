@@ -318,6 +318,10 @@ void CRemoteClientDlg::OnBnClickedButFileinfo()
 //	MessageBox(_T("下载完成"));
 //}
 
+void CRemoteClientDlg::Str2Tree(const std::string& driver, CTreeCtrl& tree)
+{
+}
+
 void CRemoteClientDlg::LoadFileCurrent()//删除文件后调用该函数实现列表刷新
 {
 	HTREEITEM hTree = m_Tree.GetSelectedItem();
@@ -543,11 +547,11 @@ LRESULT CRemoteClientDlg::OnSendPacketAck(WPARAM wParam, LPARAM lParam)
 	}
 	if (lParam == 0)
 	{
-		CPacket* pPacket = (CPacket*)wParam;
-		if (pPacket != nullptr)
+		if (wParam != NULL)
 		{
-			CPacket& packAck = *pPacket;
-			switch (pPacket->sCmd)
+			CPacket packAck = *(CPacket*)wParam;
+			delete (CPacket*)wParam;
+			switch (packAck.sCmd)
 			{
 			case 1:
 			{
@@ -625,6 +629,7 @@ LRESULT CRemoteClientDlg::OnSendPacketAck(WPARAM wParam, LPARAM lParam)
 			case 9:
 				break;
 			case 1981:
+				TRACE("已收到连接测试的应答数据包\r\n");
 				break;
 			default:
 				break;
@@ -632,7 +637,6 @@ LRESULT CRemoteClientDlg::OnSendPacketAck(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	return 0;
-	return LRESULT();
 }
 
 //LRESULT CRemoteClientDlg::OnSendPacket(WPARAM wParam, LPARAM lParam)//第四步: 定义消息响应函数

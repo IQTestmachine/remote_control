@@ -3,9 +3,9 @@
 
 CClientSocket* CClientSocket::m_instance = NULL;
 CClientSocket::Helper CClientSocket::m_helper;
-std::map<UINT, CClientSocket::MSGFUNC> CClientSocket::m_mapFunc;
+//std::map<UINT, CClientSocket::MSGFUNC> CClientSocket::m_mapFunc;
 
-CClientSocket* pserver = CClientSocket::getInstance();
+CClientSocket* pclient = CClientSocket::getInstance();
 
 std::string GetErrorInfo(int wsaErrCode)
 {
@@ -24,8 +24,6 @@ std::string GetErrorInfo(int wsaErrCode)
 
 bool CClientSocket::SendPacket(HWND hWnd, const CPacket& pack, bool isAutoClosed, WPARAM wParam)
 {
-	if (m_hThread == INVALID_HANDLE_VALUE)
-		m_hThread = (HANDLE)_beginthreadex(nullptr, 0, &CClientSocket::threadEntry, this, 0, &m_nThreadID);
 	UINT nMode = isAutoClosed ? CM_AUTOCLOSED : 0;
 	std::string strOut;
 	pack.Data(strOut);
@@ -164,6 +162,7 @@ unsigned CClientSocket::threadEntry(void* arg)
 
 void CClientSocket::threadFunc2()
 {
+	SetEvent(m_eventInvoke);
 	MSG msg;
 	while (::GetMessage(&msg, nullptr, 0, 0))
 	{
@@ -183,7 +182,8 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 	HWND hWnd = (HWND)lParam;
 	if (InitSocket() == true)
 	{
-		int ret = send(m_client, (char*)data.strData.c_str(), (int)data.nMode, 0);
+		//TRACE("即将发送的数据长度是: %d\r\n", data.strData.size());
+		int ret = send(m_client, (char*)data.strData.c_str(), data.strData.size(), 0);
 		if (ret > 0)
 		{
 			size_t index = 0;
@@ -193,6 +193,7 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 			while (m_client != INVALID_SOCKET)
 			{
 				size_t len = recv(m_client, pBuffer + index, BUFFER_SIZE - index, 0);
+				TRACE("%d\r\n", len);
 				if (len > 0 || index > 0)
 				{
 					index += len;
@@ -200,11 +201,12 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 					CPacket pack((BYTE*)pBuffer, tmp);
 					if (tmp > 0)
 					{
+						TRACE("%d\r\n", tmp);
 						::SendMessage(hWnd, WM_SEND_PACK_ACK, (WPARAM)new CPacket(pack), data.wParam);
 						if (data.nMode & CM_AUTOCLOSED)
 						{
 							CloseSocket();
-							TRACE("成功接收服务端执行命令号: %d发送的一个数据包", pack.sCmd);
+							TRACE("成功接收服务端执行命令号: %d发送的一个数据包\r\n", pack.sCmd);
 							return;
 						}
 
@@ -216,7 +218,7 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 				{
 					CloseSocket();
 					::SendMessage(hWnd, WM_SEND_PACK_ACK, NULL, 1);
-					TRACE("成功接收服务端执行命令发送的全部数据包");
+					TRACE("成功接收服务端执行命令发送的全部数据包\r\n");
 				}
 			}
 		}
@@ -224,7 +226,7 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			CloseSocket();
 			::SendMessage(hWnd, WM_SEND_PACK_ACK, NULL, -1);
-			TRACE("发送命令失败");
+			TRACE("发送命令失败\r\n");
 		}
 			
 	}
@@ -232,6 +234,6 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		//TODO: 错误处理
 		::SendMessage(hWnd, WM_SEND_PACK_ACK, NULL, -2);
-		TRACE("连接服务端失败");
+		TRACE("连接服务端失败\r\n");
 	}
 }

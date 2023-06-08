@@ -143,7 +143,7 @@ private:
 
 	}MSGINFO;
 	typedef LRESULT (CCommandCtrl::* MSGFUNC)(UINT nMsg, WPARAM wParam, LPARAM lParam);
-	static std::map<UINT, MSGFUNC> m_mapFunc;//消息函数指针映射表
+	static std::map<UINT, MSGFUNC> m_mapFunc;//消息函数指针映射表 不明白为什么控制层这里可以用static, 而网络层却不可以
 	CWatchDialog m_watchDlg;
 	CRemoteClientDlg m_remoteDlg;
 	CStatusDlg m_statusDlg;
