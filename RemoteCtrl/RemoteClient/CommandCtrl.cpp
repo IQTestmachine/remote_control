@@ -100,7 +100,6 @@ void CCommandCtrl::DownFileEnd()
 	m_statusDlg.ShowWindow(SW_HIDE);
 	m_remoteDlg.EndWaitCursor();
 	m_remoteDlg.MessageBox(_T("下载完成"));
-
 }
 
 int CCommandCtrl::StartWatchScreen()
@@ -117,6 +116,7 @@ void CCommandCtrl::threadEntryForWatchData(void* arg)
 {
 	CCommandCtrl* thiz = (CCommandCtrl*)arg;
 	thiz->threadWatchData();
+	TRACE("监控服务端屏幕线程已结束\r\n");
 	_endthread();
 }
 
@@ -127,9 +127,10 @@ void CCommandCtrl::threadWatchData()
 	{
 		//if (m_watchDlg.m_isFull == false)//将截图数据存入到缓存
 		//{
-			if (GetTickCount64() - nTick < 50)
+			//TRACE("%lld\r\n", nTick);
+			if (GetTickCount64() - nTick < 200)
 			{
-				Sleep(50 - DWORD(GetTickCount64() - nTick));
+				Sleep(200 - GetTickCount64() + nTick);
 			}
 			nTick = GetTickCount64();
 			int ret = SendCommandPacket(m_watchDlg.GetSafeHwnd(), 6, true, nullptr, 0);

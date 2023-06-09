@@ -217,7 +217,6 @@ public:
 		if (m_client != INVALID_SOCKET)
 			CloseSocket();
 		m_client = socket(PF_INET, SOCK_STREAM, 0);
-		TRACE("%d\r\n", m_client);
 		// TODO: 校验, 套接字是否创建成功
 		if (m_client == -1)
 			return false;

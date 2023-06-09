@@ -106,13 +106,13 @@ LRESULT CWatchDialog::OnSendPacketAck(WPARAM wParam, LPARAM lParam)
 {
 	if (lParam == -1 || lParam == -2)
 	{
-		//未能连接到服务端或者未能成功发送命令
+		TRACE("未能连接到服务端或者未能成功发送命令");
 	}
 	else if (lParam == 1)
 	{
-		//已全部接收服务端处理某个命令发送的数据包(此时服务端套接字已关闭)
+		TRACE("已全部接收服务端处理某个命令发送的数据包(此时服务端套接字已关闭)");
 	}
-	if (lParam == 0)
+	else
 	{
 		if (wParam != NULL)
 		{
@@ -132,12 +132,17 @@ LRESULT CWatchDialog::OnSendPacketAck(WPARAM wParam, LPARAM lParam)
 				m_nObjHeight = m_image.GetHeight();
 				//TRACE("服务端截图宽高: m_nObjWidth = %d, m_nObjHeight = %d\r\n", m_nObjWidth, m_nObjHeight);
 				m_image.Destroy();
-				TRACE("已显示截图\r\n");
+				//TRACE("已显示截图\r\n");
 				break;
 			}
 			case 5:
+				TRACE("服务端已执行鼠标命令: %d\r\n", packAck.sCmd);
+				break;
 			case 7:
+				break;
 			case 8:
+				TRACE("服务端已执行解锁命令: %d\r\n", packAck.sCmd);
+				break;
 			default:
 				break;
 			}
@@ -150,7 +155,7 @@ void CWatchDialog::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标左键抬起函数\r\n");
+		//TRACE("进入监控鼠标左键抬起函数\r\n");
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
 		//TRACE("转变为服务端的鼠标位置: x = %d, y = %d\r\n", remote.x, remote.y);
@@ -190,7 +195,7 @@ void CWatchDialog::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	if (m_nObjWidth != -1 && m_nObjHeight != -1)
 	{
-		TRACE("进入监控鼠标左键按下函数\r\n");
+		//TRACE("进入监控鼠标左键按下函数\r\n");
 		//TRACE("最初获取的鼠标位置: x = %d, y = %d\r\n", point.x, point.y);
 		//坐标转换
 		CPoint remote = UserPointtoRemotePoint(point);
@@ -282,6 +287,7 @@ void CWatchDialog::OnMouseMove(UINT nFlags, CPoint point)
 		event.nButton = 4;//没有按键
 		event.nAction = 5;//移动
 		CCommandCtrl::getInstance()->SendCommandPacket(GetSafeHwnd(), 5, true, (BYTE*)&event, sizeof(event));
+		Sleep(50);
 		/*CRemoteClientDlg* pParent = (CRemoteClientDlg*)GetParent();
 		pParent->SendMessage(WM_SEND_PACKET, 5 << 1 | 1, (WPARAM) & event);*/
 	}

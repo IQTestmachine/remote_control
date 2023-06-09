@@ -255,27 +255,28 @@ protected:
 			nFlags = 0x08;
 			break;
 		}
+        //SetCursorPos(mouse.ptXY.x, mouse.ptXY.y);
 		switch (nFlags)
 		{
 		case 0x21://×ó¼üË«»÷
-			mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, GetMessageExtraInfo());
-			mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, GetMessageExtraInfo());
-		case 0x11://×ó¼üµ¥»÷
-			mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, GetMessageExtraInfo());
-			mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, GetMessageExtraInfo());
-			break;
-		case 0x41://×ó¼ü°´ÏÂ
-			mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, GetMessageExtraInfo());
-			break;
-		case 0x81://×ó¼ü·Å¿ª
-			mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, GetMessageExtraInfo());
-			break;
-		case 0x22://ÓÒ¼üË«»÷
-			mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, GetMessageExtraInfo());
-			mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, GetMessageExtraInfo());
-		case 0x12://ÓÒ¼üµ¥»÷
-			mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, GetMessageExtraInfo());
-			mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, GetMessageExtraInfo());
+			mouse_event(MOUSEEVENTF_LEFTDOWN, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+			mouse_event(MOUSEEVENTF_LEFTUP, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+        case 0x11://×ó¼üµ¥»÷
+            mouse_event(MOUSEEVENTF_LEFTDOWN, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            mouse_event(MOUSEEVENTF_LEFTUP, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            break;
+        case 0x41://×ó¼ü°´ÏÂ
+            mouse_event(MOUSEEVENTF_LEFTDOWN, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            break;
+        case 0x81://×ó¼ü·Å¿ª
+            mouse_event(MOUSEEVENTF_LEFTUP, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            break;
+        case 0x22://ÓÒ¼üË«»÷
+            mouse_event(MOUSEEVENTF_RIGHTDOWN, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            mouse_event(MOUSEEVENTF_RIGHTUP, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+        case 0x12://ÓÒ¼üµ¥»÷
+            mouse_event(MOUSEEVENTF_RIGHTDOWN, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
+            mouse_event(MOUSEEVENTF_RIGHTUP, mouse.ptXY.x, mouse.ptXY.y, 0, GetMessageExtraInfo());
 			break;
 		case 0x42://ÓÒ¼ü°´ÏÂ
 			mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, GetMessageExtraInfo());
