@@ -25,31 +25,16 @@ public:
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
-//public:
-//	bool isClosed()
-//	{
-//		return m_isClosed;
-//	}
-//	void SetWatchStatus(bool isClosed = false)
-//	{
-//		m_isClosed = isClosed;
-//	}
+
 private:
-	//static void threadEntryForWatchData(void* arg);//静态函数不能使用this指针, 因此声明如下函数辅助
-	//void threadWatchData();
-	//static void threadEntryForDownFile(void* arg);
-	//void threadDownFile();
-	void InitUIData();
-	void Str2Tree(const std::string& driver, CTreeCtrl& tree);
-	void UpdateFileInfo(const FILEINFO& finfo, HTREEITEM hParent);
-	void UpdateDownloadFile(const std::string& strData, FILE* pFile);
-	void LoadFileCurrent(HTREEITEM lParam);
-	//void LoadFileCurrent();
+	void InitUIData();//初始化RemoteDlg的UI, 以及IP地址与端口号
+	void Str2Tree(const std::string& driver, CTreeCtrl& tree);//将获取的磁盘分区数据包转换为树的形式
+	void UpdateFileInfo(const FILEINFO& finfo, HTREEITEM hParent);//将获取的文件夹或文件插入到对应的控件
+	void UpdateDownloadFile(const std::string& strData, FILE* pFile);//将下载文件所接收到的数据写入客户端对应的文件中
+	void LoadFileCurrent(HTREEITEM lParam);//删除文件后实现列表刷新
 	void LoadFileInfo();
 	CString GetPath(HTREEITEM hTree);
 	void DeleteTreeChildrenItem(HTREEITEM hTree);
-	//返回值是命令号, 若小于0则表示错误
-	/*int SendCommandPacket(int nCmd, bool bAutoClose = true, BYTE* pData = nullptr, size_t nLength = 0);*/
 
 
 // 实现
@@ -64,7 +49,6 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	afx_msg void OnBnClickedAbort();
 	CString m_nPort;
 	DWORD m_server_address;
 	afx_msg void OnBnClickedButFileinfo();
@@ -78,10 +62,9 @@ public:
 	afx_msg void OnDeleteFile();
 	afx_msg void OnOpenFile();
 	//afx_msg LRESULT OnSendPacket(WPARAM wParam, LPARAM lParam);//第二步:声明自定义消息函数
-	afx_msg LRESULT OnSendPacketAck(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnSendPacketAck(WPARAM wParam, LPARAM lParam);//自定义消息响应函数, 用于显示数据, 将套接字接收到的数据包转化为相应的可视化数据
 
 	afx_msg void OnBnClickedBtnStartWatch();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnClickedBtnTest();
 	afx_msg void OnIpnFieldchangedIpaddressServ(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnEnChangeEditPort();

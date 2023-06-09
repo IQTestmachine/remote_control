@@ -242,73 +242,9 @@ public:
 	}
 
 #define BUFFER_SIZE 8192000
-	//客户端的DealCommand()与服务端的DealCommand()不同, 
-	//通常服务端的DealCommand只是获取客户端的操作命令, 服务端在关闭m_client套接字之前不会再调用该函数, 即服务端每次连接仅执行一条命令
-	//执行客户端的命令服务端可能发送大量数据包, 因此客户端需要多次调用DealCommand, 
-	//客户端会每次调用DealCommand只获取一个数据包, 然而TCP连接导致DealCommand里调用recv()函数可能接收到了大量数据, 
-	//这些数据不存在数据边界, 可能包括几个数据包和不完整的数据包, 
-	//因此增添了新的数据成员(接收缓冲区)m_buffer来使得调用DealCommand接收一个数据包之后剩余数据依旧存在
-	int DealCommand()//接收一个数据包
-	{
-		if (m_client == -1)
-		{
-			TRACE("客户端连接关闭");
-			return -1;
-		}	
-		//char buffer[1024] = "";
-		char* buffer = m_buffer.data();
-		static size_t index = 0;//index表示m_buffer中有多少个字节, 因此每次调用recv()和CPacket(const BYTE* pData, size_t& nSize)都需调整index
-		while (true)
-		{
-			size_t len = recv(m_client, buffer + index, BUFFER_SIZE - index, 0);
-			if (len <= 0 && index <= 0)
-			{
-				//TRACE("接收数据有问题, len = %d, index = %d\r\n", len, index);
-				return -1;
-			}
-			index += len;
-			//TRACE("buffer + index = %x, len = %d\r\n", buffer + index, len);
-			size_t tmp = index;
-			m_packet = CPacket((BYTE*)buffer, tmp);//tmp表示从m_buffer中取出的数据包有多少个字节, 如果tmp等于0, 则代表并未取出任何数据
-			//TRACE("解包的长度是%lld %d\r\n", *(long long*)m_packet.strData.c_str(), m_packet.nLength);
-			if (tmp > 0)//采用TCP连接, 不一定能从m_buffer中出一个数据包, 此时就要继续执行循环, 去recv()数据
-			{
-				memmove(buffer, buffer + tmp, index - tmp);//由于取出了一个数据包, 因此需要调整m_buffer
-				index -= tmp;
-				return m_packet.sCmd;
-			}
-		}
 
-		return -1;
-	}
+	bool SendPacket(HWND hWnd, const CPacket& pack, bool isAutoClosed, WPARAM wParam = 0);
 
-	bool CClientSocket::SendPacket(HWND hWnd, const CPacket& pack, bool isAutoClosed, WPARAM wParam = 0);
-	//bool SendPacket(const CPacket& pack, std::list<CPacket>& lstPacks, bool isAutoClosed = true);
-
-	bool GetFilePath(std::string& strPath)
-	{
-		if (m_packet.sCmd >= 2 && m_packet.sCmd <= 4)
-		{
-			strPath = m_packet.strData;
-			return true;
-		}
-		return false;
-	}
-
-	bool GetMouseEvent(MOUSEEV& mouse)
-	{
-		if (m_packet.sCmd == 5)
-		{
-			memcpy(&mouse, m_packet.strData.c_str(), sizeof(MOUSEEV));
-			return true;
-		}
-		return false;
-	}
-
-	CPacket& GetPacket()
-	{
-		return m_packet;
-	}
 	void CloseSocket()
 	{
 		closesocket(m_client);
@@ -329,18 +265,12 @@ private:
 	UINT m_nThreadID;
 	typedef void(CClientSocket::* MSGFUNC)(UINT nMsg, WPARAM wParam, LPARAM lParam);
 	std::map<UINT, MSGFUNC> m_mapFunc;//消息函数指针映射表
-	std::mutex m_lock;
 	HANDLE m_hThread;
 	bool m_bAutoClosed;
-	std::list<CPacket> m_lstSend;
-	std::map<HANDLE, std::list<CPacket>&> m_mapAck;
-	std::map<HANDLE, bool> m_mapAutoClosed;
 	int m_nIP;
 	int m_nPort;
-	std::vector<char> m_buffer;//与服务端相比新增的成员变量(接收缓冲区), 详见208~213行注释
 	SOCKET m_client;
-	CPacket m_packet;
-	CClientSocket() : m_nIP(0x7f000001/*INADDR_ANY*/), m_nPort(9527), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_hThread(INVALID_HANDLE_VALUE)
+	CClientSocket() : m_nIP(INADDR_ANY), m_nPort(9527), m_client(INVALID_SOCKET), m_bAutoClosed(true), m_hThread(INVALID_HANDLE_VALUE)
 	{
 		if (InitSockEnv() == false)
 		{
@@ -352,8 +282,6 @@ private:
 		if (WaitForSingleObject(m_eventInvoke, 100) == WAIT_TIMEOUT)
 			TRACE("网络消息处理线程启动失败!\r\n");
 		CloseHandle(m_eventInvoke);
-		m_buffer.resize(BUFFER_SIZE);
-		memset(m_buffer.data(), 0, BUFFER_SIZE);
 		struct
 		{
 			UINT message;
@@ -388,7 +316,7 @@ private:
 	}
 
 
-	static unsigned __stdcall threadEntry(void* arg);
+	static unsigned __stdcall threadEntry(void* arg);//该线程在客户端套接字创建时即启动, 专门用于处理客户端UI界面发送的各种消息
 	void threadFunc2();
 
 	bool InitSockEnv()
@@ -399,21 +327,6 @@ private:
 			return false;
 		}
 		return true;
-	}
-
-	bool Send(const char* pData, int nSize)
-	{
-		if (m_client == -1)
-			return false;
-		return send(m_client, pData, nSize, 0) > 0;
-	}
-	bool Send(const CPacket& pack)
-	{
-		if (m_client == -1)
-			return false;
-		std::string strOut;
-		pack.Data(strOut);
-		return send(m_client, strOut.c_str(), strOut.size(), 0) > 0;
 	}
 
 	void SendPack(UINT msg, WPARAM wParam, LPARAM lParam);

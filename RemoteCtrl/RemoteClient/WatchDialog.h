@@ -25,19 +25,6 @@ public:
 	CImage m_image;//缓存(采用一张图片来用作缓存区域)
 	bool m_isFull;//缓存是否有数据
 	bool m_isClosed;//监视是否关闭
-//public:
-//	CImage& GetImage()
-//	{
-//		return m_image;
-//	}
-//	bool isFull()
-//	{
-//		return m_isFull;
-//	}
-//	void SetImageStatus(bool isFull = false)
-//	{
-//		m_isFull = isFull;
-//	}
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 
@@ -45,9 +32,8 @@ protected:
 public:
 	CPoint UserPointtoRemotePoint(CPoint& point, bool isScreen = false);//客户端鼠标转换为服务端鼠标
 	virtual BOOL OnInitDialog();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	CStatic m_picture;
-	afx_msg LRESULT OnSendPacketAck(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnSendPacketAck(WPARAM wParam, LPARAM lParam);//自定义消息响应函数, 用于显示数据, 将套接字接收到的数据包转化为相应的可视化数据
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
