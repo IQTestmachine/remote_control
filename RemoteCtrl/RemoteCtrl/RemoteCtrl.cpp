@@ -23,6 +23,56 @@ CWinApp theApp;
 
 using namespace std;
 
+//服务端开机启动函数
+//开机启动的时候, 程序能否启动(即是已经在注册表里注册)与启动用户的权限有关, 例如程序的启动权限是管理员级别, 而启动用户的权限是普通用户, 则不会启动程序
+//开机启动对环境变量有影响, 如果依赖dll(动态库), 则可能启动失败
+//若要使用动态库, 复制这些dll到文件夹system32(!!!多是64位程序)下面sysWOW64(!!!多是32位程序)下面
+void ChooseAutoInvoke()
+{
+    TCHAR wcsSystem[MAX_PATH] = _T("");
+    CString strPath = CString(_T("C:\\Windows\\SysWOW64\\RemoteCtrl.exe"));
+    if (PathFileExists(strPath))
+        return;
+    CString strSubKey = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
+    CString strInfo = _T("该程序只允许用于合法用途\n");
+    strInfo += _T("继续运行该程序, 这台计算机将处于被监控状态!\n");
+    strInfo += _T("如果你不希望这样, 请点击\"取消\"按钮\n");
+    strInfo += _T("点击\"是\"按钮, 该程序将被复制到该计算机上, 并随系统启动而自动运行!\n");
+    strInfo += _T("点击\"否\"按钮, 该程序只运行一次, 并且不会在系统内留下任何东西!\n");
+
+    int ret = MessageBox(nullptr, strInfo, _T("警告"), MB_YESNOCANCEL | MB_ICONWARNING | MB_TOPMOST);
+    if (ret == IDYES)
+    {
+        char sSys[MAX_PATH] = "";
+        char sPath[MAX_PATH] = "";
+        std::string strExe = "\\RemoteCtrl.exe ";
+        GetCurrentDirectoryA(MAX_PATH, sPath);
+        GetSystemDirectoryA(sSys, sizeof(sSys));
+        std::string strCmd = "mklink " + std::string(sSys) +strExe + std::string(sPath) + strExe;
+        system(strCmd.c_str());
+        HKEY hKey = nullptr;
+        ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, strSubKey, 0, KEY_WRITE | KEY_WOW64_64KEY, &hKey);//打开注册表下的指定路径
+        if (ret != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            MessageBox(NULL, _T("设置自动开机启动失败! 是否权限不足?\r\n程序启动失败!"), _T("错误"), MB_ICONERROR | MB_TOPMOST);
+            exit(0);
+        }
+        CString strPath = CString(_T("%SystemRoot%\\SysWOW64\\RemoteCtrl.exe"));
+        ret = RegSetValueEx(hKey, _T("RemoteCtrl"), 0, REG_EXPAND_SZ, (BYTE*)(LPCTSTR)strPath, strPath.GetLength() * sizeof(TCHAR));//添加到注册表的指定路径下
+        if (ret != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            MessageBox(NULL, _T("设置自动开机启动失败! 是否权限不足?\r\n程序启动失败!"), _T("错误"), MB_ICONERROR | MB_TOPMOST);
+            exit(0);
+        }
+        RegCloseKey(hKey);
+    }
+    else if (ret == IDCANCEL)
+        exit(0);
+
+}
+
 //int ExcuteCommand(int nCmd)
 //{
 //    int ret = 0;
@@ -79,6 +129,7 @@ int main()
 
     if (hModule != nullptr)
     {
+
         // 初始化 MFC 并在失败时显示错误   
         if (!AfxWinInit(hModule, nullptr, ::GetCommandLine(), 0))
         {
@@ -90,7 +141,7 @@ int main()
         {
             // 从比较难的技术开始, 本项目从服务端(被控制端)的实现开始
             // 1.进度的可控性 2.对接的方便性 3.可行性评估,提早暴露风险         
-            
+            ChooseAutoInvoke();
             CCommand cmd;//命令处理模块
             int ret = CServerSocket::getInstance()->Run(&CCommand::RunCommand, &cmd);//网络处理模块
             switch (ret)
