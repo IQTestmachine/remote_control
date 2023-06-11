@@ -27,9 +27,7 @@ bool CClientSocket::SendPacket(HWND hWnd, const CPacket& pack, bool isAutoClosed
 	std::string strOut;
 	pack.Data(strOut);
 	PACKET_DATA* packet_data = new PACKET_DATA(strOut.c_str(), strOut.size(), nMode, wParam);
-	int ret = PostThreadMessage(m_nThreadID, WM_SEND_PACK, (WPARAM)packet_data, (LPARAM)hWnd);
-	/*if (ret)
-		delete packet_data;*/
+	int ret = PostThreadMessage(m_nThreadID, WM_SEND_PACK, (WPARAM)packet_data, (LPARAM)hWnd);	
 	return ret;
 }
 
@@ -82,7 +80,12 @@ void CClientSocket::SendPack(UINT msg, WPARAM wParam, LPARAM lParam)
 					CPacket pack((BYTE*)pBuffer, tmp);
 					if (tmp > 0)
 					{
-						::SendMessage(hWnd, WM_SEND_PACK_ACK, (WPARAM)new CPacket(pack), data.wParam);
+						CPacket* pack_ack = new CPacket(pack);
+						::SendMessage(hWnd, WM_SEND_PACK_ACK, (WPARAM)pack_ack, data.wParam);
+						if (GetLastError() > 0)
+							TRACE("错误码 %d(未能成功投递消息)\r\n)", GetLastError());
+						/*if (ret > 0)
+							delete pack_ack;*/
 						if (data.nMode == CM_AUTOCLOSED)
 						{
 							CloseSocket();
