@@ -143,6 +143,71 @@ void ChooseAutoInvoke()
 
 }
 
+void ShowError()
+{
+    LPWSTR lpMessageBuf = nullptr;
+    //strerror(error) 标准C语言库
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+        nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPWSTR)&lpMessageBuf, 0, nullptr);
+    OutputDebugString(lpMessageBuf);
+    LocalFree(lpMessageBuf);
+}
+
+bool IsAdmin()//管理员权限检测
+{
+    HANDLE hToken = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+    {
+        ShowError();
+        return false;
+    }
+    TOKEN_ELEVATION eve;
+    DWORD len = 0;
+    if (GetTokenInformation(hToken, TokenElevation, &eve, sizeof(eve), &len) == false)
+    {
+        ShowError();
+        return false;
+    }
+    CloseHandle(hToken);
+    if (len == sizeof(eve))
+        return eve.TokenIsElevated;
+    return false;
+}
+
+void RunAsAdmin()//获取管理员权限
+{
+    HANDLE hToken = nullptr;
+    bool ret = LogonUser(L"Administrator", NULL, NULL, LOGON32_LOGON_INTERACTIVE, LOGON32_PROVIDER_DEFAULT, &hToken);
+    if (!ret)
+    {
+        MessageBox(nullptr, _T("管理员用户登入失败"), _T("程序错误"), 0);
+        ShowError();
+        exit(0);
+    }
+    OutputDebugString(L"Logon Administrator success!\r\n");
+    CloseHandle(hToken);
+
+    STARTUPINFO si = { 0 };
+    PROCESS_INFORMATION pi = { 0 };
+    TCHAR sPath[MAX_PATH] = _T("");
+    GetCurrentDirectory(MAX_PATH, sPath);
+    CString strCmd = sPath;
+    strCmd += _T("\\RemoteCtrl.exe");
+    bool ret1 = CreateProcessWithLogonW(_T("Administrator"), nullptr, nullptr, LOGON_WITH_PROFILE, nullptr, (LPWSTR)(LPCWSTR)strCmd, CREATE_UNICODE_ENVIRONMENT, nullptr, nullptr, &si, &pi);
+
+    if (!ret1)
+    {
+        MessageBox(nullptr, strCmd, _T("创建进程失败"), 0);
+        ShowError();
+        exit(0);
+    }
+    MessageBox(nullptr, strCmd, _T("创建进程成功"), 0);
+    WaitForSingleObject(pi.hProcess, INFINITE);//等待创建的子进程结束
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+}
 
 //int ExcuteCommand(int nCmd)
 //{
@@ -194,13 +259,27 @@ void ChooseAutoInvoke()
 
 int main()
 {
-    int nRetCode = 0;
+    if (IsAdmin())
+    {
+        OutputDebugString(L"current is run as administrator\r\n");
+        MessageBox(nullptr, _T("管理员用户"), _T("用户状态"), 0);
+    } 
+    else
+    {
+        OutputDebugString(L"current is run as normal user!\r\n");
+        MessageBox(nullptr, _T("普通用户"), _T("用户状态"), 0);
+        //TODO: 获取管理员权限, 使用该权限创建新的进程
+        RunAsAdmin();
+        //MessageBox(nullptr, _T("管理员用户登入成功"), _T("用户状态"), 0);
+        return 0;
+    }
 
+    int nRetCode = 0;
+        
     HMODULE hModule = ::GetModuleHandle(nullptr);
 
     if (hModule != nullptr)
     {
-
         // 初始化 MFC 并在失败时显示错误   
         if (!AfxWinInit(hModule, nullptr, ::GetCommandLine(), 0))
         {
