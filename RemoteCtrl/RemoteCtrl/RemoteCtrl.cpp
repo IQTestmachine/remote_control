@@ -9,6 +9,8 @@
 #include "IQtestmachineTool.h"
 #include <list>
 #include <conio.h>
+#include "IQtestmachineQueue.h"
+#include <mutex>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -51,138 +53,175 @@ bool ChooseAutoInvoke(const CString& strPath)
     return true;
 }
 
-#define IOCP_LIST_PUSH 1
-#define IOCP_LIST_POP 2
-#define IOCP_LIST_EMPTY 0
+//#define IOCP_LIST_PUSH 1
+//#define IOCP_LIST_POP 2
+//#define IOCP_LIST_EMPTY 0
 
-enum {
-    IocpListEmpty,
-    IocpListPush,
-    IocpListPop
-};
+//enum {
+//    IocpListEmpty,
+//    IocpListPush,
+//    IocpListPop
+//};
+//
+//typedef struct IocpParam
+//{
+//    int nOperator;//操作
+//    std::string strData;//数据
+//    _beginthread_proc_type cbFunc;//回调
+//    IocpParam(int np, const char* sData, _beginthread_proc_type cb = NULL)
+//    {
+//        nOperator = np;
+//        strData = sData;
+//        cbFunc = cb;
+//    }
+//    IocpParam()
+//    {
+//        nOperator = -1;
+//    }
+//}IOCP_PARAM;
+//
+//void threadmain(HANDLE& hIOCP)
+//{
+//    int counts1_push = 0, counts1_pop = 0;
+//    std::list<std::string> lstString;
+//    DWORD dwTransferred = 0;
+//    ULONG_PTR CompletionKey = 0;
+//    OVERLAPPED* pOverlapped = NULL;
+//    while (GetQueuedCompletionStatus(hIOCP, &dwTransferred, &CompletionKey, &pOverlapped, INFINITE))
+//    {
+//        if (dwTransferred == 0 && CompletionKey == NULL)
+//        {
+//            printf("thread is prepare to exit!\r\n");
+//            break;
+//        }
+//        IOCP_PARAM* pParam = (IOCP_PARAM*)CompletionKey;
+//        if (pParam->nOperator == IocpListPush)
+//        {
+//            lstString.push_back(pParam->strData);
+//            counts1_push++;
+//        }          
+//        else if (pParam->nOperator == IocpListPop)
+//        {
+//            std::string* pStr = nullptr;
+//            if (lstString.size() > 0)
+//            {
+//                pStr = new std::string(lstString.front());
+//                lstString.pop_front();
+//            }
+//            if (pParam->cbFunc)
+//            {
+//                pParam->cbFunc(pStr);
+//            }
+//            counts1_pop++;
+//        }
+//        else if (pParam->nOperator == IocpListEmpty)
+//            lstString.clear();
+//
+//        delete pParam;
+//    }
+//    printf("counts1_push = %d, counts1_pop = %d\r\n", counts1_push, counts1_pop);
+//}
+//void threadQueueEntry(HANDLE hIOCP)
+//{
+//    //开辟线程一般采用这种方式: 一个线程入口函数, 一个线程处理函数, 这样能够保障局部对象的析构函数被调用
+//    //如果只有一个函数作为入口的同时也作为处理函数, 则在结束线程时并不能保证局部对象被释放, 会引起内存泄露
+//    threadmain(hIOCP);
+//    _endthread();
+//}
+//
+//void func(void* arg)
+//{
+//    std::string* pstr = (std::string*)arg;
+//    if (pstr != nullptr)
+//        printf("pop from list: %s\r\n", pstr->c_str());
+//    else
+//        printf("list is empty, no data\r\n");
+//    delete pstr;
+//}
 
-typedef struct IocpParam
+/*测试的几个步骤
+* 1.bug测试/功能测试
+* 2.关键因素测试(内存泄露, 运行的稳定性, 条件性)
+* 3.压力测试(可靠性测试)
+* 4.性能测试
+*/
+//利用IOCP自定义线程安全队列测试的性能测试
+void test()
 {
-    int nOperator;//操作
-    std::string strData;//数据
-    _beginthread_proc_type cbFunc;//回调
-    IocpParam(int np, const char* sData, _beginthread_proc_type cb = NULL)
+    CIQtestmachineQueue<std::string> lstString;
+
+    ULONGLONG tick = GetTickCount64();
+    ULONGLONG tick0 = GetTickCount64();
+    ULONGLONG total = GetTickCount64();
+    while (GetTickCount64() - total <= 1000/*_kbhit() == 0*/)//完成端口, 把请求与实现(读与写)进行了分离
     {
-        nOperator = np;
-        strData = sData;
-        cbFunc = cb;
+        /*if (GetTickCount64() - tick0 > 10)
+        {
+            lstString.PushBack("hello world");
+            tick0 = GetTickCount64();
+        }*/
+        lstString.PushBack("hello world");
+        tick0 = GetTickCount64();
     }
-    IocpParam()
+    size_t counts = lstString.Size();
+    printf("push: %d/s\r\n", counts);
+    total = GetTickCount64();
+    while (GetTickCount64() - total <= 1000)
     {
-        nOperator = -1;
+        std::string str;
+        lstString.PopFront(str);
+        tick = GetTickCount64();
     }
-}IOCP_PARAM;
+    printf("pop %d/s\r\n", counts - lstString.Size());
+    lstString.Clear();
+    printf("exit done!\r\n");
 
-void threadmain(HANDLE& hIOCP)
-{
-    int counts1_push = 0, counts1_pop = 0;
-    std::list<std::string> lstString;
-    DWORD dwTransferred = 0;
-    ULONG_PTR CompletionKey = 0;
-    OVERLAPPED* pOverlapped = NULL;
-    while (GetQueuedCompletionStatus(hIOCP, &dwTransferred, &CompletionKey, &pOverlapped, INFINITE))
+    std::list<std::string> lst_STL;//STL容器list本身的性能
+    total = GetTickCount64();
+    while (GetTickCount64() - total <= 1000)
     {
-        if (dwTransferred == 0 && CompletionKey == NULL)
-        {
-            printf("thread is prepare to exit!\r\n");
-            break;
-        }
-        IOCP_PARAM* pParam = (IOCP_PARAM*)CompletionKey;
-        if (pParam->nOperator == IocpListPush)
-        {
-            lstString.push_back(pParam->strData);
-            counts1_push++;
-        }          
-        else if (pParam->nOperator == IocpListPop)
-        {
-            std::string* pStr = nullptr;
-            if (lstString.size() > 0)
-            {
-                pStr = new std::string(lstString.front());
-                lstString.pop_front();
-            }
-            if (pParam->cbFunc)
-            {
-                pParam->cbFunc(pStr);
-            }
-            counts1_pop++;
-        }
-        else if (pParam->nOperator == IocpListEmpty)
-            lstString.clear();
-
-        delete pParam;
+        lst_STL.push_back("hello world");
     }
-    printf("counts1_push = %d, counts1_pop = %d\r\n", counts1_push, counts1_pop);
-}
-void threadQueueEntry(HANDLE hIOCP)
-{
-    //开辟线程一般采用这种方式: 一个线程入口函数, 一个线程处理函数, 这样能够保障局部对象的析构函数被调用
-    //如果只有一个函数作为入口的同时也作为处理函数, 则在结束线程时并不能保证局部对象被释放, 会引起内存泄露
-    threadmain(hIOCP);
-    _endthread();
-}
+    counts = lst_STL.size();
+    printf("STL: list push %d/s\r\n", lst_STL.size());
+    total = GetTickCount64();
+    while (GetTickCount64() - total <= 200)
+    {
+        lst_STL.pop_front();
+    }
+    printf("STL: pop %d/s\r\n", (counts - lst_STL.size()) * 5);
 
-void func(void* arg)
-{
-    std::string* pstr = (std::string*)arg;
-    if (pstr != nullptr)
-        printf("pop from list: %s\r\n", pstr->c_str());
-    else
-        printf("list is empty, no data\r\n");
-    delete pstr;
+    std::list<std::string> lst_mutex;//使用互斥锁的性能
+    std::mutex lock_test;
+    total = GetTickCount64();
+    while (GetTickCount64() - total <= 1000)
+    {
+        lock_test.lock();
+        lst_STL.push_back("hello world");
+        lock_test.unlock();
+    }
+    counts = lst_STL.size();
+    printf("mutex: list push %d/s\r\n", lst_STL.size());
+    total = GetTickCount64();
+    while (GetTickCount64() - total <= 200)
+    {
+        lock_test.lock();
+        lst_STL.pop_front();
+        lock_test.unlock();
+    }
+    printf("mutex: pop %d/s\r\n", (counts - lst_STL.size()) * 5);
 }
 
 int main()
 {
     if (!CIQtestmachineTool::Init())
         return 1;
-    printf("press any key exit ...\r\n");
-    HANDLE hIOCP = INVALID_HANDLE_VALUE;//Input/Output Complection Port
-    hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 1);//与epoll的区别点1: 可以有多个线程
-    if (hIOCP == INVALID_HANDLE_VALUE || hIOCP == nullptr)
+    //printf("press any key exit ...\r\n");
+
+    for (int i = 0; i < 10; i++)
     {
-        printf("create iocp failed!%d\r\n", GetLastError());
-        return 1;
+        test();
     }
-    HANDLE hThread = (HANDLE)_beginthread(threadQueueEntry, 0, hIOCP);
-
-    ULONGLONG tick = GetTickCount64();
-    ULONGLONG tick0 = GetTickCount64();
-    int counts_pop = 0, counts_push = 0;
-    while (_kbhit() == 0)//完成端口, 把请求与实现(读与写)进行了分离
-    {
-        if (GetTickCount64() - tick0 > 1300)
-        {
-            PostQueuedCompletionStatus(hIOCP, sizeof(IOCP_PARAM), (ULONG_PTR)new IOCP_PARAM(IocpListPop, "", func), NULL);
-            tick0 = GetTickCount64();
-            counts_pop++;
-        }
-        if (GetTickCount64() - tick > 2000)
-        {
-            PostQueuedCompletionStatus (hIOCP, sizeof(IOCP_PARAM), (ULONG_PTR)new IOCP_PARAM(IocpListPush, "hello world!"), NULL);
-            tick = GetTickCount64();
-            counts_push++;
-        }
-      
-        Sleep(1);
-    }
-
-    printf("counts_push = %d, counts_pop = %d\r\n", counts_push, counts_pop);
-    getchar();
-    if (hIOCP)
-    {
-        PostQueuedCompletionStatus(hIOCP, 0, NULL, NULL);
-        WaitForSingleObject(hThread, INFINITE);
-    }
-    CloseHandle(hIOCP);
-
-    printf("exit done!\r\n");
-
 
     //if (CIQtestmachineTool::IsAdmin())
     //{

@@ -145,6 +145,7 @@
     <ClInclude Include="Command.h" />
     <ClInclude Include="CServerSocket.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="IQtestmachineQueue.h" />
     <ClInclude Include="IQtestmachineTool.h" />
     <ClInclude Include="LockDialog.h" />
     <ClInclude Include="Packet.h" />
