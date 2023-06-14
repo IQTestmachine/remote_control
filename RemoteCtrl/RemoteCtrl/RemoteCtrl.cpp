@@ -10,7 +10,8 @@
 #include <list>
 #include <conio.h>
 #include "IQtestmachineQueue.h"
-#include <mutex>
+#include <MSWSock.h>
+#include "IQtestmachineServer.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -53,175 +54,15 @@ bool ChooseAutoInvoke(const CString& strPath)
     return true;
 }
 
-//#define IOCP_LIST_PUSH 1
-//#define IOCP_LIST_POP 2
-//#define IOCP_LIST_EMPTY 0
-
-//enum {
-//    IocpListEmpty,
-//    IocpListPush,
-//    IocpListPop
-//};
-//
-//typedef struct IocpParam
-//{
-//    int nOperator;//操作
-//    std::string strData;//数据
-//    _beginthread_proc_type cbFunc;//回调
-//    IocpParam(int np, const char* sData, _beginthread_proc_type cb = NULL)
-//    {
-//        nOperator = np;
-//        strData = sData;
-//        cbFunc = cb;
-//    }
-//    IocpParam()
-//    {
-//        nOperator = -1;
-//    }
-//}IOCP_PARAM;
-//
-//void threadmain(HANDLE& hIOCP)
-//{
-//    int counts1_push = 0, counts1_pop = 0;
-//    std::list<std::string> lstString;
-//    DWORD dwTransferred = 0;
-//    ULONG_PTR CompletionKey = 0;
-//    OVERLAPPED* pOverlapped = NULL;
-//    while (GetQueuedCompletionStatus(hIOCP, &dwTransferred, &CompletionKey, &pOverlapped, INFINITE))
-//    {
-//        if (dwTransferred == 0 && CompletionKey == NULL)
-//        {
-//            printf("thread is prepare to exit!\r\n");
-//            break;
-//        }
-//        IOCP_PARAM* pParam = (IOCP_PARAM*)CompletionKey;
-//        if (pParam->nOperator == IocpListPush)
-//        {
-//            lstString.push_back(pParam->strData);
-//            counts1_push++;
-//        }          
-//        else if (pParam->nOperator == IocpListPop)
-//        {
-//            std::string* pStr = nullptr;
-//            if (lstString.size() > 0)
-//            {
-//                pStr = new std::string(lstString.front());
-//                lstString.pop_front();
-//            }
-//            if (pParam->cbFunc)
-//            {
-//                pParam->cbFunc(pStr);
-//            }
-//            counts1_pop++;
-//        }
-//        else if (pParam->nOperator == IocpListEmpty)
-//            lstString.clear();
-//
-//        delete pParam;
-//    }
-//    printf("counts1_push = %d, counts1_pop = %d\r\n", counts1_push, counts1_pop);
-//}
-//void threadQueueEntry(HANDLE hIOCP)
-//{
-//    //开辟线程一般采用这种方式: 一个线程入口函数, 一个线程处理函数, 这样能够保障局部对象的析构函数被调用
-//    //如果只有一个函数作为入口的同时也作为处理函数, 则在结束线程时并不能保证局部对象被释放, 会引起内存泄露
-//    threadmain(hIOCP);
-//    _endthread();
-//}
-//
-//void func(void* arg)
-//{
-//    std::string* pstr = (std::string*)arg;
-//    if (pstr != nullptr)
-//        printf("pop from list: %s\r\n", pstr->c_str());
-//    else
-//        printf("list is empty, no data\r\n");
-//    delete pstr;
-//}
-
-/*测试的几个步骤
-* 1.bug测试/功能测试
-* 2.关键因素测试(内存泄露, 运行的稳定性, 条件性)
-* 3.压力测试(可靠性测试)
-* 4.性能测试
-*/
-//利用IOCP自定义线程安全队列测试的性能测试
-void test()
-{
-    CIQtestmachineQueue<std::string> lstString;
-
-    ULONGLONG tick = GetTickCount64();
-    ULONGLONG tick0 = GetTickCount64();
-    ULONGLONG total = GetTickCount64();
-    while (GetTickCount64() - total <= 1000/*_kbhit() == 0*/)//完成端口, 把请求与实现(读与写)进行了分离
-    {
-        /*if (GetTickCount64() - tick0 > 10)
-        {
-            lstString.PushBack("hello world");
-            tick0 = GetTickCount64();
-        }*/
-        lstString.PushBack("hello world");
-        tick0 = GetTickCount64();
-    }
-    size_t counts = lstString.Size();
-    printf("push: %d/s\r\n", counts);
-    total = GetTickCount64();
-    while (GetTickCount64() - total <= 1000)
-    {
-        std::string str;
-        lstString.PopFront(str);
-        tick = GetTickCount64();
-    }
-    printf("pop %d/s\r\n", counts - lstString.Size());
-    lstString.Clear();
-    printf("exit done!\r\n");
-
-    std::list<std::string> lst_STL;//STL容器list本身的性能
-    total = GetTickCount64();
-    while (GetTickCount64() - total <= 1000)
-    {
-        lst_STL.push_back("hello world");
-    }
-    counts = lst_STL.size();
-    printf("STL: list push %d/s\r\n", lst_STL.size());
-    total = GetTickCount64();
-    while (GetTickCount64() - total <= 200)
-    {
-        lst_STL.pop_front();
-    }
-    printf("STL: pop %d/s\r\n", (counts - lst_STL.size()) * 5);
-
-    std::list<std::string> lst_mutex;//使用互斥锁的性能
-    std::mutex lock_test;
-    total = GetTickCount64();
-    while (GetTickCount64() - total <= 1000)
-    {
-        lock_test.lock();
-        lst_STL.push_back("hello world");
-        lock_test.unlock();
-    }
-    counts = lst_STL.size();
-    printf("mutex: list push %d/s\r\n", lst_STL.size());
-    total = GetTickCount64();
-    while (GetTickCount64() - total <= 200)
-    {
-        lock_test.lock();
-        lst_STL.pop_front();
-        lock_test.unlock();
-    }
-    printf("mutex: pop %d/s\r\n", (counts - lst_STL.size()) * 5);
-}
+void iocp();
 
 int main()
 {
     if (!CIQtestmachineTool::Init())
         return 1;
-    //printf("press any key exit ...\r\n");
-
-    for (int i = 0; i < 10; i++)
-    {
-        test();
-    }
+    
+    iocp();
+  
 
     //if (CIQtestmachineTool::IsAdmin())
     //{
@@ -255,4 +96,74 @@ int main()
     //}   
     
     return 0;
+}
+
+class COverlapped
+{
+public:
+    OVERLAPPED m_overlapped;
+    DWORD m_operator;
+    char m_buffer[4096];
+    COverlapped()
+    {
+        m_operator = 0;
+        memset(&m_overlapped, 0, sizeof(m_overlapped));
+        memset(m_buffer, 0, sizeof(m_buffer));
+    }
+};
+
+void iocp()
+{
+    //SOCKET server = socket(AF_INET, SOCK_STREAM, 0);//普通TCP连接套接字
+    //server = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);//重叠IO的TCP套接字
+    //if (server == INVALID_SOCKET)
+    //{
+    //    CIQtestmachineTool::ShowError();
+    //    return;
+    //}
+    //HANDLE hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, server, 4);
+    //SOCKET client = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+    //CreateIoCompletionPort((HANDLE)server, hIOCP, 0, 0);
+    //sockaddr_in addr;
+    //addr.sin_family = PF_INET;
+    //addr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    //addr.sin_port = htons(9527);
+    //bind(server, (sockaddr*)&addr, sizeof(addr));
+    //listen(server, 5);
+
+    //COverlapped overlapped;
+    //overlapped.m_operator = 1;
+    //memset(&overlapped, 0, sizeof(OVERLAPPED));
+    ////高并发accept()不合适
+    //char buffer[4096] = "";
+    //DWORD received = 0;
+    //if (AcceptEx(server, client, overlapped.m_buffer, 0, sizeof(sockaddr_in) + 16, sizeof(sockaddr_in) + 16, &received, &overlapped.m_overlapped) == false)
+    //    CIQtestmachineTool::ShowError();
+
+    //overlapped.m_operator = 2;
+    //WSASend();
+    //overlapped.m_operator = 3;
+    //WSARecv();
+    ////开启线程
+    //while (true)//代表一个线程
+    //{
+    //    LPOVERLAPPED pOverlapped = NULL;
+    //    DWORD transferred = 0;
+    //    DWORD key = 0;
+    //    if (GetQueuedCompletionStatus(hIOCP, &transferred, &key, &pOverlapped, INFINITY))
+    //    {
+    //        COverlapped* po = CONTAINING_RECORD(pOverlapped, COverlapped, m_overlapped);
+    //        switch (po->m_operator)
+    //        {
+    //        case 1:
+    //            //处理accept操作
+    //        }
+
+    //    }
+    //}
+
+    CIQtestmachineServer server;
+    server.StartServer();
+    getchar();
+
 }

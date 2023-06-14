@@ -204,7 +204,7 @@ private:
 	bool InitSockEnv()
 	{
 		WSADATA data;
-		if (WSAStartup(MAKEWORD(1, 1), &data)) // TODO: 返回值处理
+		if (WSAStartup(MAKEWORD(2, 0), &data)) // TODO: 返回值处理
 		{
 			return false;
 		}
