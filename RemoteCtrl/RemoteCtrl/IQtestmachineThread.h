@@ -14,7 +14,7 @@ class CThreadWorker
 {
 public:
 	CThreadWorker() : thiz(nullptr), func(nullptr) { }
-	CThreadWorker(ThreadFuncBase* obj, FUNCTYPE f) : thiz(obj), func(f) { }
+	CThreadWorker(void* obj, FUNCTYPE f) : thiz((ThreadFuncBase*)obj), func(f) { }
 	CThreadWorker(const CThreadWorker& worker)
 	{
 		thiz = worker.thiz;
@@ -92,6 +92,7 @@ public:
 		if (m_worker.load() != NULL && m_worker.load() != &worker)
 		{
 			CThreadWorker* pWorker = m_worker.load();
+			TRACE("delete pWorker = %08X, m_worker = %08X\r\n", pWorker, m_worker.load());
 			m_worker.store(NULL);
 			delete pWorker;
 		}
@@ -102,7 +103,9 @@ public:
 			m_worker.store(NULL);
 			return;
 		}
-		m_worker.store(new CThreadWorker(worker));
+		CThreadWorker* pWorker = new CThreadWorker(worker);
+		TRACE("new pWorker = %08X, m_worker = %08X\r\n", pWorker, m_worker.load());
+		m_worker.store(pWorker);
 	}
 
 	//返会true代表空闲, false代表已经分配了工作
@@ -135,7 +138,11 @@ private:
 						OutputDebugString(str);
 					}
 					if (ret < 0)
+					{
+						CThreadWorker* pWorker = m_worker.load();
 						m_worker.store(NULL);
+						delete pWorker;
+					}
 				}
 			}
 			else
@@ -173,7 +180,7 @@ public:
 		for (size_t i = 0; i < m_threads.size(); i++)
 		{
 			delete m_threads[i];
-			m_threads[i] == NULL;
+			m_threads[i] = NULL;
 		}
 		
 		m_threads.clear();

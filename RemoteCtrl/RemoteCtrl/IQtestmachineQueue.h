@@ -285,4 +285,4 @@ private:
 };
 
 typedef IQtestmachineSendQueue<std::vector<char>>::IQMCALLBACK SENDCALLBACK;
-
+ 

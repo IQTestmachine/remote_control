@@ -165,5 +165,4 @@ void iocp()
     CIQtestmachineServer server;
     server.StartServer();
     getchar();
-
 }

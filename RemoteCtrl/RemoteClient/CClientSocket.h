@@ -231,6 +231,7 @@ public:
 			return false;
 		}
 		int ret = connect(m_client, (sockaddr*)&serv_adr, sizeof(serv_adr));
+		//TRACE("连接成功: %d %s\r\n", WSAGetLastError(), GetErrorInfo(WSAGetLastError()).c_str());
 		if (ret == -1)
 		{
 			TRACE("连接失败: %d %s\r\n", WSAGetLastError(), GetErrorInfo(WSAGetLastError()).c_str());

@@ -75,7 +75,9 @@ public:
         return &m_received;
     }
     LPWSABUF RecvWSABuffer();
+    LPWSAOVERLAPPED RecvOverlapped();
     LPWSABUF SendWSABuffer();
+    LPWSAOVERLAPPED SendOverlapped();
 
     sockaddr_in* GetLocalAddr()
     {
@@ -107,8 +109,8 @@ private:
     std::shared_ptr<SENDOVERLAPPED> m_send;
     std::vector<char> m_buffer;
     size_t m_used;//已经使用的缓冲区大小
-    sockaddr_in m_laddr;
-    sockaddr_in m_raddr;
+    sockaddr_in m_laddr;//本地sockaddr_in
+    sockaddr_in m_raddr;//远程sockaddr_in
     bool m_isbusy;
     IQtestmachineSendQueue<std::vector<char>> m_vecSend;//发送数据的线程安全队列
 };
@@ -166,7 +168,7 @@ typedef ErrorOverlapped<IQError> ERROROVERLAPPED;
 class CIQtestmachineServer : public ThreadFuncBase
 {
 public:
-    CIQtestmachineServer(const std::string& ip = "0.0.0.0", short port = 9527) : m_pool(10)
+    CIQtestmachineServer(const std::string& ip = "127.0.0.1", short port = 9527) : m_pool(10)
     {
         m_hIOCP = INVALID_HANDLE_VALUE;
         m_server = INVALID_SOCKET;
@@ -178,29 +180,10 @@ public:
     ~CIQtestmachineServer();
 
     bool StartServer();
-
-    bool NewAccept()
-    {
-        PCLIENT pClient(new IQtestmachineClient());
-        pClient->SetOverlapped(pClient);
-        m_client.insert(std::pair<SOCKET, PCLIENT>(*pClient, pClient));
-        if (!AcceptEx(m_server, *pClient, *pClient, 0, sizeof(sockaddr_in) + 16, sizeof(sockaddr_in) + 16, *pClient, *pClient))
-        {
-            closesocket(m_server);
-            m_server = INVALID_SOCKET;
-            m_hIOCP = INVALID_HANDLE_VALUE;
-            return false;
-        }
-        return true;
-    }
+    bool NewAccept();
+    bool BindNewSocket(SOCKET s);
 private:
-    void CreateSocket()
-    {
-        m_server = WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
-        int opt = 1;
-        setsockopt(m_server, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
-    }
-
+    void CreateSocket();
     int threadIocp();
 private:
     IQtestmachinePool m_pool;
