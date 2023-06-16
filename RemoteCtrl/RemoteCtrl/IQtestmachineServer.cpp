@@ -145,6 +145,7 @@ int CIQtestmachineServer::threadIocp()
 	OVERLAPPED* lpOverlapped = NULL;
 	if (GetQueuedCompletionStatus(m_hIOCP, &transferred, &CompletionKey, &lpOverlapped, INFINITE))
 	{
+
 		if (CompletionKey != 0)
 		{
 			IQtestmachineOverlapped* pOverlapped = CONTAINING_RECORD(lpOverlapped, IQtestmachineOverlapped, m_overlapped);
@@ -210,7 +211,7 @@ bool CIQtestmachineServer::StartServer()
 	if (listen(m_server, 3) == -1)
 		return false;
 	m_hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 4);
-	if (m_hIOCP = NULL)
+	if (m_hIOCP == NULL)
 	{
 		closesocket(m_server);
 		m_server = INVALID_SOCKET;

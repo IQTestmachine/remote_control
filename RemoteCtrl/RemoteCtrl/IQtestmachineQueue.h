@@ -260,7 +260,7 @@ protected:
 			if (CIQtestmachineQueue<T>::m_lstData.size() > 0)
 			{
 				pParam->sData = CIQtestmachineQueue<T>::m_lstData.front();
-				if ((m_base->*m_callback)(pParam->sData) == 0);
+				if ((m_base->*m_callback)(pParam->sData) == 0)
 					CIQtestmachineQueue<T>::m_lstData.pop_front();
 			}
 			delete pParam;

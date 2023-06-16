@@ -37,7 +37,7 @@ public:
 	}
 	bool IsValid() const
 	{
-		return thiz == NULL && func != NULL;
+		return thiz != NULL && func != NULL;
 	}
 private:
 	ThreadFuncBase* thiz;
