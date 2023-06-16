@@ -168,7 +168,7 @@ typedef ErrorOverlapped<IQError> ERROROVERLAPPED;
 class CIQtestmachineServer : public ThreadFuncBase
 {
 public:
-    CIQtestmachineServer(const std::string& ip = "127.0.0.1", short port = 9527) : m_pool(1)
+    CIQtestmachineServer(const std::string& ip = "127.0.0.1", short port = 9527) : m_pool(5)
     {
         m_hIOCP = INVALID_HANDLE_VALUE;
         m_server = INVALID_SOCKET;
