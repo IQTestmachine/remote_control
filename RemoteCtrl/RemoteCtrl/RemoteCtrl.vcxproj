@@ -144,6 +144,9 @@
     <ClInclude Include="Command.h" />
     <ClInclude Include="CServerSocket.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="IQNetwork.h" />
+    <ClInclude Include="IQSocket.h" />
+    <ClInclude Include="IQtestmachineThread.h" />
     <ClInclude Include="IQtestmachineTool.h" />
     <ClInclude Include="LockDialog.h" />
     <ClInclude Include="Packet.h" />
@@ -155,6 +158,7 @@
   <ItemGroup>
     <ClCompile Include="Command.cpp" />
     <ClCompile Include="CServerSocket.cpp" />
+    <ClCompile Include="IQNetwork.cpp" />
     <ClCompile Include="IQtestmachineTool.cpp" />
     <ClCompile Include="LockDialog.cpp" />
     <ClCompile Include="pch.cpp">
