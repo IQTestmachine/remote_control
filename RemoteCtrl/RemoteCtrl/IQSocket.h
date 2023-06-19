@@ -199,7 +199,7 @@ public:
 	}
 	int IQaccept() { }
 	int IQconnect(const std::string& ip, short port) { }
-	int IQsend(const IQBuffer& buffer)
+	int IQsend (const IQBuffer& buffer)
 	{
 		return ::send(m_socket, buffer, buffer.size(), 0);
 	}
